@@ -217,10 +217,11 @@ if __name__ == '__main__':
         # Receve Data from C++ Program
         data =  socket_local.recv()
         print "Received RoboCar's original Image"
-        image = np.frombuffer(data, dtype=np.uint8);
+        BGR_image = np.frombuffer(data, dtype=np.uint8);
+        RGB_image = to_plot(BGR_image)
 
         if(adati):
-            socket_to_adati.send(image.data)
+            socket_to_adati.send(RGB_image.data)
             data =  socket_to_adati.recv()
             print "Received Lane Detection Image"
             detection_image = np.frombuffer(data, dtype=np.uint8).reshape((224,224));
@@ -228,7 +229,7 @@ if __name__ == '__main__':
             new_image_g = cv2.resize(detection_image,(227,227))
 
         else:
-            new_image_g = lane_detection(image)
+            new_image_g = lane_detection(RGB_image)
 
         new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
 
