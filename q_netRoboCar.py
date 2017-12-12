@@ -10,15 +10,16 @@ class QNet:
     # Hyper-Parameters
     gamma = 0.99  # 報酬の割引率
 
-    #最初に1000回ランダムに行動
-    initial_exploration = 10**3  # Initial exploratoin. original: 5x10^4
 
     replay_size = 32  # Replay (batch) size
-    target_model_update_freq = 10**4  # Target update frequancy. original: 10^4
-    data_size = 10**5  # Data size of history. original: 10^6
+    #target_model_update_freq = 10**4  # Target update frequancy. original: 10^4
+    target_model_update_freq = 10**2  # Target update frequancy. original: 10^4
+    #data_size = 10**5  # Data size of history. original: 10^6
+    data_size = 10**3  # Data size of history. original: 10^6
     hist_size = 1 #original: 4
     # モデルを保存する頻度
-    save_model_freq = 10**4
+    #save_model_freq = 10**4
+    save_model_freq = 10**2
 
     def __init__(self, use_gpu, enable_controller, dim):
         self.use_gpu = use_gpu
@@ -41,6 +42,7 @@ class QNet:
             self.model.to_gpu()
 
         self.model_target = copy.deepcopy(self.model)
+        self.model_sim = copy.deepcopy(self.model)
 
         self.optimizer = optimizers.RMSpropGraves(lr=0.00025, alpha=0.95, momentum=0.95, eps=0.0001)
         self.optimizer.setup(self.model.collect_parameters())
@@ -116,37 +118,36 @@ class QNet:
         self.d[4][data_index] = episode_end_flag
 
     def experience_replay(self, time):
-        if self.initial_exploration < time:
-            # Pick up replay_size number of samples from the Data
-            # 例 : np.random.randint(0,100,(5,5))  0〜99 の整数で5x5の行列を生成
-            if time < self.data_size: #during the first sweep of the History
-                replay_index = np.random.randint(0, time, (self.replay_size, 1))
-            else:
-                replay_index = np.random.randint(0, self.data_size, (self.replay_size, 1))
+        # Pick up replay_size number of samples from the Data
+        # 例 : np.random.randint(0,100,(5,5))  0〜99 の整数で5x5の行列を生成
+        if time < self.data_size: #during the first sweep of the History
+            replay_index = np.random.randint(0, time, (self.replay_size, 1))
+        else:
+            replay_index = np.random.randint(0, self.data_size, (self.replay_size, 1))
 
-            #奥山プログラムとの違い -> 全てのExperienceに対してReplayない
-            # -> ep_endがTrueならstate_dashが全て0になる
-            s_replay = np.ndarray(shape=(self.replay_size, self.hist_size, self.dim), dtype=np.float32)
-            a_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.uint8)
-            r_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.float32)
-            s_dash_replay = np.ndarray(shape=(self.replay_size, self.hist_size, self.dim), dtype=np.float32)
-            episode_end_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.bool)
-            for i in xrange(self.replay_size):
-                s_replay[i] = np.asarray(self.d[0][replay_index[i]], dtype=np.float32)
-                a_replay[i] = self.d[1][replay_index[i]]
-                r_replay[i] = self.d[2][replay_index[i]]
-                s_dash_replay[i] = np.array(self.d[3][replay_index[i]], dtype=np.float32)
-                episode_end_replay[i] = self.d[4][replay_index[i]]
+        #奥山プログラムとの違い -> 全てのExperienceに対してReplayない
+        # -> ep_endがTrueならstate_dashが全て0になる
+        s_replay = np.ndarray(shape=(self.replay_size, self.hist_size, self.dim), dtype=np.float32)
+        a_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.uint8)
+        r_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.float32)
+        s_dash_replay = np.ndarray(shape=(self.replay_size, self.hist_size, self.dim), dtype=np.float32)
+        episode_end_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.bool)
+        for i in xrange(self.replay_size):
+            s_replay[i] = np.asarray(self.d[0][replay_index[i]], dtype=np.float32)
+            a_replay[i] = self.d[1][replay_index[i]]
+            r_replay[i] = self.d[2][replay_index[i]]
+            s_dash_replay[i] = np.array(self.d[3][replay_index[i]], dtype=np.float32)
+            episode_end_replay[i] = self.d[4][replay_index[i]]
 
-            if self.use_gpu >= 0:
-                s_replay = cuda.to_gpu(s_replay)
-                s_dash_replay = cuda.to_gpu(s_dash_replay)
+        if self.use_gpu >= 0:
+            s_replay = cuda.to_gpu(s_replay)
+            s_dash_replay = cuda.to_gpu(s_dash_replay)
 
-            # Gradient-based update
-            self.optimizer.zero_grads()
-            loss, _ = self.forward(s_replay, a_replay, r_replay, s_dash_replay, episode_end_replay)
-            loss.backward()
-            self.optimizer.update()
+        # Gradient-based update
+        self.optimizer.zero_grads()
+        loss, _ = self.forward(s_replay, a_replay, r_replay, s_dash_replay, episode_end_replay)
+        loss.backward()
+        self.optimizer.update()
 
     def q_func(self, state):
         h4 = F.relu(self.model.l4(state / 255.0))
@@ -157,6 +158,22 @@ class QNet:
         h4 = F.relu(self.model_target.l4(state / 255.0))
         q = self.model_target.q_value(h4)
         return q
+
+    def sim_q_func(self, state):
+        s = Variable(state)
+        h4 = F.relu(self.model_sim.l4(state / 255.0))
+        q = self.model_sim.q_value(h4)
+        q = q.data
+
+        # Simple text based visualization
+        if self.use_gpu >= 0:
+            q_max = np.max(q.get())
+        else:
+            q_max = np.max(q)
+
+        return q_max
+
+
 
     def e_greedy(self, state, epsilon):
         s = Variable(state)

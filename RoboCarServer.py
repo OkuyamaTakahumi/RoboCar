@@ -12,7 +12,7 @@ import zmq
 from chainer import cuda
 
 from cnn_feature_extractorRobo import CnnFeatureExtractor
-from q_netRobo import QNet
+from q_netRoboCar import QNet
 import argparse
 
 
