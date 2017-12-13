@@ -15,7 +15,6 @@ from cnn_feature_extractorRobo import CnnFeatureExtractor
 from q_netRoboCar import QNet
 import argparse
 
-
 parser = argparse.ArgumentParser(description='ml-agent-for-unity')
 
 parser.add_argument('--gpu', '-g', default=-1, type=int,
@@ -37,6 +36,8 @@ parser.add_argument('--image', '-i', action = "store_true",
 parser.add_argument('--q_value', '-q', action = "store_true",
                     help=u'Q_ValueをPlotするか')
 
+parser.add_argument('--test', '-t', action = "store_true",
+                    help=u'TEST frags, False => Train')
 args = parser.parse_args()
 
 if(args.image and args.q_value):
@@ -47,9 +48,6 @@ elif(args.image):
     plt.gray()
 elif(args.q_value):
     fig, ax2 = plt.subplots(1, 1)
-
-
-
 
 
 def to_plot(img):
@@ -70,7 +68,6 @@ def lane_detection(img):
     #img_cutblack = cv2.rectangle(img_threshold,(0,0),(227,10),(0,0,0),-1)
 
     return img_threshold
-
 
 def pause_Image_plot(img):
     ax1.cla()
@@ -94,6 +91,26 @@ def pause_Q_plot(q):
 
     ax2.bar(actions,q,align="center")
 
+def decide_test_action(action,q):
+    q_max = q.ravel()[action]
+    q_3 = q.ravel()[3]
+    #print "q_max : %f"%(q_max)
+    #print "q_3 : %f"%(q_3)
+    #print "q_3 / q_max : %f"%(q_3 / q_max)
+    #print "q_max - q_3 : %f"%(q_max - q_3)
+    if(q_max != 0):
+        divide = q_3 / q_max
+    else:
+        divide = 1
+    if(divide > 0.97):
+        return 3
+    else:
+        return action
+    return action
+def send_action(action):
+    #  Send reply back to client
+    socket_local.send(np.array([action]))
+    print "Send Action : %d"%(action)
 
 class CnnDqnAgent(object):
     #アクションリスト(数字じゃなくても大丈夫)
@@ -105,8 +122,6 @@ class CnnDqnAgent(object):
 
     # AlexNetの出力
     image_feature_dim = 256 * 6 * 6
-
-    time = 0
 
     agent_initialized = False
 
@@ -127,36 +142,81 @@ class CnnDqnAgent(object):
             print("pickle.dump finished")
 
         self.q_net = QNet(self.use_gpu, self.actions, self.q_net_input_dim)
-
-        #save_modelでもしようするため,selfをつけた
-        folder = options["folder"]
+        self.q_net_sim = QNet(self.use_gpu, self.actions, self.q_net_input_dim)
 
         model_num = options['model_num']
+        #save_modelでもしようするため,selfをつけた
+        self.folder = options["folder"]
 
         self.q_net.load_model(folder,model_num)
+        self.q_net_sim.load_model(folder,0)
+
+    # 行動取得系,state更新系メソッド
+    def agent_start(self, image):
+        #obs_array = self.feature_extractor.feature(image)
+        # Initialize State
+        #self.state = np.asanyarray([obs_array], dtype=np.uint8)
+        #self.state_ = np.asanyarray(self.state.reshape(1, self.q_net.hist_size, self.q_net_input_dim), dtype=np.float32)
+
+        #if self.use_gpu >= 0:
+            #self.state_ = cuda.to_gpu(self.state_)
+
+        # Generate an Action e-greedy
+        action, q_now = self.q_net.e_greedy(self.state_, 0)
+        return_action = action
+
+        # Update for next step
+        self.last_action = copy.deepcopy(return_action)
+        self.last_state = self.state.copy()
+
+        return return_action
+
+    # 学習系メソッド
+    def agent_end(self, reward, time):  # Episode Terminated
+        print('episode finished. Reward:%.1f' % (reward))
+
+        # Learning Phase
+        self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.last_state,True)
+        self.q_net.experience_replay(time)
+
+        # Target model update
+        if np.mod(time, self.q_net.target_model_update_freq) == 0:
+            print("Model Updated")
+            self.q_net.target_model_update()
+
+
+        # Model Save
+        if np.mod(time,self.q_net.save_model_freq) == 0:
+            print "------------------Save Model------------------"
+            self.q_net.save_model(self.folder,time)
+
 
     # 行動取得系,state更新系メソッド
     def agent_step(self, image):
-        obs_array = self.feature_extractor.feature(image)
+        #obs_array = self.feature_extractor.feature(image)
 
-        # Compose State : 4-step sequential image
-        if self.q_net.hist_size == 4:
-            self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], obs_array], dtype=np.uint8)
-        elif self.q_net.hist_size == 2:
-            self.state = np.asanyarray([self.state[1], obs_array], dtype=np.uint8)
-        elif self.q_net.hist_size == 1:
-            self.state = np.asanyarray([obs_array], dtype=np.uint8)
-        else:
-            print("self.DQN.hist_size err")
+        #self.state = np.asanyarray([obs_array], dtype=np.uint8)
 
-        # q_funcに入れる際は(サンプル数,hist_size,q_net_input_dim)
-        # 例:np.ndarray(shape=(self.replay_size, self.hist_size, self.dim))
-        state_ = np.asanyarray(self.state.reshape(1, self.q_net.hist_size, self.q_net_input_dim), dtype=np.float32)
-        if self.use_gpu >= 0:
-            state_ = cuda.to_gpu(state_)
+        #self.state_ = np.asanyarray(self.state.reshape(1, self.q_net.hist_size, self.q_net_input_dim), dtype=np.float32)
+        #if self.use_gpu >= 0:
+            #self.state_ = cuda.to_gpu(self.state_)
 
         # Generate an Action by e-greedy action selection
-        action, q_now = self.q_net.e_greedy(state_, 0)
+        action, q_now = self.q_net.e_greedy(self.state_, 0)
+
+        #return action, eps, q_now, obs_array
+        return action, q_now, obs_array
+
+    # 学習系メソッド
+    def agent_step_update(self, reward, time, action, q_now, obs_array):
+        # Learning Phase
+        self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.state, False)
+        self.q_net.experience_replay(time)
+
+        # Target model update
+        if np.mod(time, self.q_net.target_model_update_freq) == 0:
+            print("Model Updated")
+            self.q_net.target_model_update()
 
         # Simple text based visualization
         if self.use_gpu >= 0:
@@ -164,43 +224,63 @@ class CnnDqnAgent(object):
         else:
             q_max = np.max(q_now)
 
+        print('Step:%d  Action:%d  Reward:%.1f Q_max:%3f' % (
+            time, self.q_net.action_to_index(action), reward, q_max))
 
-        if(q_max < 5):
-            action = 7
+        self.last_action = copy.deepcopy(action)
+        self.last_state = self.state.copy()
 
+        # save model
+        if np.mod(time,self.q_net.save_model_freq) == 0:
+            print "------------------Save Model------------------"
+            self.q_net.save_model(self.folder,time)
 
+    def check_death(self,image,death_value,test):
+        # image -> obs_array
+        obs_array = self.feature_extractor.feature(image)
+        self.state = np.asanyarray([obs_array], dtype=np.uint8)
+        # obs_array -> NN -> get Q_MAX
+        self.state_ = np.asanyarray(self.state.reshape(1, self.q_net.hist_size, self.q_net_input_dim), dtype=np.float32)
+        if self.use_gpu >= 0:
+            self.state_ = cuda.to_gpu(self.state_)
 
+        # Generate an Action by e-greedy action selection
+        #q_max = self.q_net.sim_q_func(self.state_)
+        if(test):
+            action,q = self.q_net.e_greedy(self.state_, 0)
+        else:
+            action,q = self.q_net_sim.e_greedy(self.state_, 0)
 
-        print('Step:%d  Action:%d  Q_max:%3f' % (self.time, action, q_max))
-
-        q_diff = q_max - q_now.ravel()[3]
-        print(q_now.ravel())
-        print("Q_MAX - Q of action4 = %f" %(q_diff))
-
-
-        # Time count
-        self.time += 1
-
-        return action, q_now
+        q_max = q.ravel()[action]
+        print "Model_Sim Q_MAX:%3f"%(q_max)
+        death = q_max < death_value
+        return death, action, q
 
 
 
 
 
 if __name__ == '__main__':
+    # model_simのQ_MAXがこの値より低かったらEpisode終了
+    death_value = 10
+
     gpu = args.gpu
     adati = args.adati
     folder = args.folder
     model_num = args.model_num
     NN = args.NN
+    test = args.test
 
-    if(NN):
-        agent = CnnDqnAgent();
-        agent.agent_init(
-            use_gpu = gpu,
-            folder = folder,
-            model_num = model_num
+    death = True
+    time = 0
+
+    agent = CnnDqnAgent();
+    agent.agent_init(
+        use_gpu = gpu,
+        folder = folder,
+        model_num = model_num
         )
+    #-----------------logファイル作成----------------------------
 
     context1 = zmq.Context()
     socket_local = context1.socket(zmq.REP)
@@ -212,16 +292,14 @@ if __name__ == '__main__':
         socket_to_adati.connect("tcp://192.168.11.16:5556")
     print "Waiting Request..."
 
-    i = 0
     while True:
         # Receve Data from C++ Program
         data =  socket_local.recv()
-        print "Received RoboCar's original Image"
-        BGR_image = np.frombuffer(data, dtype=np.uint8);
-        RGB_image = to_plot(BGR_image)
+        print "Received"
+        image = np.frombuffer(data, dtype=np.uint8);
 
         if(adati):
-            socket_to_adati.send(RGB_image.data)
+            socket_to_adati.send(image.data)
             data =  socket_to_adati.recv()
             print "Received Lane Detection Image"
             detection_image = np.frombuffer(data, dtype=np.uint8).reshape((224,224));
@@ -229,17 +307,45 @@ if __name__ == '__main__':
             new_image_g = cv2.resize(detection_image,(227,227))
 
         else:
-            new_image_g = lane_detection(RGB_image)
+            new_image_g = lane_detection(image)
 
         new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
 
-        if(NN):
-            action, q = agent.agent_step(new_image)
-            #print q.ravel()
+        if(death):
+            death,test_action,test_q = agent.check_death(new_image,death_value,test)
+            if(death):
+                print "Agent is Death"
+                action = 7
+            else:
+                print "Episode START"
+                if(test):
+                    action = decide_test_action(test_action,test_q)
+                else:
+                    action = agent.agent_start(new_image)
+                episode_start_time = time
+                time += 1
+            send_action(action)
+
         else:
-            action = 1
-            q = np.zeros((7))
-            q[action] = 1
+            death,test_action,test_q = agent.check_death(new_image,death_value,test)
+            if(death):
+                send_action(7)
+                score = time - episode_start_time
+                if(not test):
+                    # --------------logファイルへの書き込み--------------
+                    reward = -1
+                    agent.agent_end(reward,time)
+                print "Score is %d"%(score)
+            else:
+                if(test):
+                    action = decide_test_action(test_action,test_q)
+                    send_action(action)
+                else:
+                    action, q_now, obs_array = agent.agent_step(new_image)
+                    send_action(action)
+                    reward = 0
+                    agent.agent_step_update(reward,time,action,q_now,obs_array)
+                time += 1
 
         if(args.image or args.q_value):
             if(args.image):
@@ -249,12 +355,4 @@ if __name__ == '__main__':
                 pause_Q_plot(q.ravel())
             plt.pause(1.0 / 10**10) #引数はsleep時間
 
-
-        #  Do some 'work'
-        #time.sleep(0.05)
-        #  Send reply back to client
-        socket_local.send(np.array([action]))
-        print "Send Action : %d"%(action)
-        print "---------------------------------------------------------------"
-
-        i+=1
+        print "------------------------------"

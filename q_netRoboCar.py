@@ -42,7 +42,6 @@ class QNet:
             self.model.to_gpu()
 
         self.model_target = copy.deepcopy(self.model)
-        self.model_sim = copy.deepcopy(self.model)
 
         self.optimizer = optimizers.RMSpropGraves(lr=0.00025, alpha=0.95, momentum=0.95, eps=0.0001)
         self.optimizer.setup(self.model.collect_parameters())
@@ -159,22 +158,6 @@ class QNet:
         q = self.model_target.q_value(h4)
         return q
 
-    def sim_q_func(self, state):
-        s = Variable(state)
-        h4 = F.relu(self.model_sim.l4(state / 255.0))
-        q = self.model_sim.q_value(h4)
-        q = q.data
-
-        # Simple text based visualization
-        if self.use_gpu >= 0:
-            q_max = np.max(q.get())
-        else:
-            q_max = np.max(q)
-
-        return q_max
-
-
-
     def e_greedy(self, state, epsilon):
         s = Variable(state)
         q = self.q_func(s)
@@ -188,7 +171,6 @@ class QNet:
                 index_action = np.argmax(q.get())
             else:
                 index_action = np.argmax(q)
-            print("#Greedy"),
         return self.index_to_action(index_action), q
 
     def target_model_update(self):
@@ -225,4 +207,4 @@ class QNet:
 
         print "model load is done!!(Model_Path=%s)"%(model_path)
         print "----------------------------------------------"
-        self.target_model_update()
+        self.model_target = copy.deepcopy(self.model)
