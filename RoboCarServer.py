@@ -168,13 +168,12 @@ class CnnDqnAgent(object):
         # Update for next step
         self.last_action = copy.deepcopy(return_action)
         self.last_state = self.state.copy()
+        print "Record last State and Action"
 
         return return_action
 
     # 学習系メソッド
     def agent_end(self, reward, time):  # Episode Terminated
-        print('episode finished. Reward:%.1f' % (reward))
-
         # Learning Phase
         self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.last_state,True)
         self.q_net.experience_replay(time)
@@ -184,12 +183,12 @@ class CnnDqnAgent(object):
             print("Model Updated")
             self.q_net.target_model_update()
 
+        print('episode finished. Reward:%.1f' % (reward))
 
         # Model Save
         if np.mod(time,self.q_net.save_model_freq) == 0:
             print "------------------Save Model------------------"
             self.q_net.save_model(self.folder,time)
-
 
     # 行動取得系,state更新系メソッド
     def agent_step(self, image):
@@ -229,6 +228,7 @@ class CnnDqnAgent(object):
 
         self.last_action = copy.deepcopy(action)
         self.last_state = self.state.copy()
+        print "Record last State and Action"
 
         # save model
         if np.mod(time,self.q_net.save_model_freq) == 0:
@@ -254,10 +254,9 @@ class CnnDqnAgent(object):
         q_max = q.ravel()[action]
         print "Model_Sim Q_MAX:%3f"%(q_max)
         death = q_max < death_value
+
+        print "Chack Death : %r"%(death)
         return death, action, q
-
-
-
 
 
 if __name__ == '__main__':

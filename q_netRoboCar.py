@@ -115,6 +115,7 @@ class QNet:
             self.d[2][data_index] = reward
             self.d[3][data_index] = state_dash
         self.d[4][data_index] = episode_end_flag
+        print "Stock Exprience ep_end:%r reward:%d"%(episode_end_flag,reward)
 
     def experience_replay(self, time):
         # Pick up replay_size number of samples from the Data
@@ -147,6 +148,7 @@ class QNet:
         loss, _ = self.forward(s_replay, a_replay, r_replay, s_dash_replay, episode_end_replay)
         loss.backward()
         self.optimizer.update()
+        print "Replay Finish"
 
     def q_func(self, state):
         h4 = F.relu(self.model.l4(state / 255.0))
