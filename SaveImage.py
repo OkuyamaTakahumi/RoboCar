@@ -23,7 +23,7 @@ args = parser.parse_args()
 
 
 if(args.image):
-    fig, ax1 = plt.subplots(1, 1)
+    fig, (ax1, ax2) = plt.subplots(1, 2)
     plt.gray()
 
 
@@ -33,9 +33,11 @@ def to_grayscale(img):
     grayed = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return grayed
 
-def pause_Image_plot(img):
+def pause_Image_plot(img1,img2):
     ax1.cla()
-    ax1.imshow(img)
+    ax1.imshow(img1)
+    ax2.cla()
+    ax2.imshow(img2)
 
 if __name__ == '__main__':
     folder = args.folder
@@ -51,17 +53,25 @@ if __name__ == '__main__':
     i = 0
     while True:
         # Receve Data from C++ Program
-        data =  socket_local.recv()
+        #data =  socket_local.recv()
+
+        # Receve Data from C++ Program
+        data1, data2=  socket_local.recv_multipart()
+
         print "Received RoboCar's original Image"
-        image = np.frombuffer(data, dtype=np.uint8);
-        image = image.reshape((600,800,3))
-        cv2.imwrite("./Images/%d.png"%(i),image)
+        image1 = np.frombuffer(data1, dtype=np.uint8);
+        image1 = image1.reshape((544,960,3))
+
+        image2 = np.frombuffer(data2, dtype=np.uint8);
+        image2 = image2.reshape((600,800,3))
+
+        cv2.imwrite("./Images1/%d.png"%(i),image1)
+        cv2.imwrite("./Images2/%d.png"%(i),image2)
         print "Save Image!!!"
         print "PhotoNumber : %d"%(i)
 
         if(args.image):
-
-            pause_Image_plot(to_plot(image))
+            pause_Image_plot(to_plot(image1),to_plot(image2))
             plt.pause(1.0 / 10**10) #引数はsleep時間
 
         #  Send reply back to client
