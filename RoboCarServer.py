@@ -286,8 +286,9 @@ if __name__ == '__main__':
         )
 
     # logファイル作成
-    with open(log_file, 'w') as the_file:
-        the_file.write('Cycle,Score,Episode \n')
+    if(not test):
+        with open(log_file, 'w') as the_file:
+            the_file.write('Cycle,Score,Episode \n')
 
     context1 = zmq.Context()
     socket_local = context1.socket(zmq.REP)

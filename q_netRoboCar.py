@@ -29,7 +29,11 @@ class QNet:
 
         print("Initializing Q-Network...")
 
-        hidden_dim = 256
+
+        #hidden_dim = 256
+        hidden_dim = 512
+
+
         self.model = FunctionSet(
             l4=F.Linear(self.dim*self.hist_size, hidden_dim,
                             wscale=np.sqrt(2)),

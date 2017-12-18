@@ -7,11 +7,12 @@ import matplotlib.pyplot as plt
 from chainer import cuda
 
 from cnn_feature_extractorRobo import CnnFeatureExtractor
-from q_netRobo import QNet
+from q_netRoboCar import QNet
 
 class CnnDqnAgent(object):
     #アクションリスト(数字じゃなくても大丈夫)
-    actions = [0, 1, 2, 3, 4, 5, 6]
+    #actions = [0, 1, 2, 3, 4, 5, 6]
+    actions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     cnn_feature_extractor = 'alexnet_feature_extractor.pickle' #1
     model = 'bvlc_alexnet.caffemodel' #2
@@ -45,8 +46,8 @@ class CnnDqnAgent(object):
         #save_modelでもしようするため,selfをつけた
         self.folder = options["folder"]
 
-        self.q_net.load_model(folder,model_num)
-        self.q_net_sim.load_model(folder,0)
+        self.q_net.load_model(self.folder,model_num)
+        self.q_net_sim.load_model(self.folder,0)
 
     # 行動取得系,state更新系メソッド
     def agent_start(self, image):
@@ -101,10 +102,10 @@ class CnnDqnAgent(object):
         action, q_now = self.q_net.e_greedy(self.state_, 0)
 
         #return action, eps, q_now, obs_array
-        return action, q_now, obs_array
+        return action, q_now
 
     # 学習系メソッド
-    def agent_step_update(self, reward, time, action, q_now, obs_array):
+    def agent_step_update(self, reward, time, action, q_now):
         # Learning Phase
         self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.state, False)
         self.q_net.experience_replay(time)

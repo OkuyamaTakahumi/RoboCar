@@ -12,7 +12,7 @@ import argparse
 
 from DQN import CnnDqnAgent
 #from Chen import
-#from Adati import
+from Adati import LaneDetection
 
 parser = argparse.ArgumentParser(description='ml-agent-for-unity')
 
@@ -38,16 +38,19 @@ parser.add_argument('--q_value', '-q', action = "store_true",
 
 parser.add_argument('--test', '-t', action = "store_true",
                     help=u'TEST frags, False => Train')
+parser.add_argument('--log-file', '-l', default='reward.log', type=str,
+                    help=u'reward log file name')
 args = parser.parse_args()
 
 if(args.image and args.q_value):
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-    plt.gray()
-elif(args.image):
     fig, (ax1, ax2) = plt.subplots(1, 2)
     plt.gray()
+elif(args.image):
+    #fig, (ax1, ax2) = plt.subplots(1, 2)
+    fig, ax1 = plt.subplots(1, 1)
+    plt.gray()
 elif(args.q_value):
-    fig, ax3 = plt.subplots(1, 1)
+    fig, ax2 = plt.subplots(1, 1)
 
 
 def to_plot(img):
@@ -57,7 +60,7 @@ def to_grayscale(img):
     return grayed
 
 def lane_detection(img):
-    img = img.reshape((600,800,3))
+    #img = img.reshape((600,800,3))
     img_gray = to_grayscale(img)
 
     img_resize = cv2.resize(img_gray,(227,227))
@@ -65,15 +68,13 @@ def lane_detection(img):
     kernel = np.ones((10,10),np.float32)/100
     img_resize = cv2.filter2D(img_resize,-1,kernel)
     img_threshold = cv2.threshold(img_resize,180,255,cv2.THRESH_BINARY)[1]
-    #img_cutblack = cv2.rectangle(img_threshold,(0,0),(227,10),(0,0,0),-1)
+    return cv2.merge((img_threshold,img_threshold,img_threshold))
 
-    return img_threshold
-
-def pause_Image_plot(img1,img2):
+# def pause_Image_plot(img1,img2):
+def pause_Image_plot(img1):
     ax1.cla()
     ax1.imshow(img1)
-    ax2.cla()
-    ax2.imshow(img2)
+
 #Q関数のplot
 def pause_Q_plot(q):
     ax2.cla()
@@ -111,28 +112,27 @@ def decide_test_action(action,q):
     return action
 def send_action(action):
     #  Send reply back to client
-    socket_local.send(np.array([action]))
+    socket.send(np.array([action]))
     print "Send Action : %d"%(action)
 
 
 
 if __name__ == '__main__':
     # model_simのQ_MAXがこの値より低かったらEpisode終了
-    death_value = 10
+    death_value = 5
 
     gpu = args.gpu
-
+    use_adati = args.adati
     folder = args.folder
     model_num = args.model_num
-
     NN = args.NN
-    use_adati = args.adati
-    use_chen = args.chen
-
     test = args.test
+    use_chen = args.chen
+    log_file = args.log_file
 
     death = True
     time = 0
+    episode_num = 1
 
     if(NN):
         agent = CnnDqnAgent();
@@ -142,82 +142,107 @@ if __name__ == '__main__':
             model_num = model_num
         )
     if(use_adati):
-        adati = adati君のクラス
-    if(use_chen):
-        chen = chen君のクラス
+        adati = LaneDetection()
 
-    #-----------------logファイル作成----------------------------
 
-    context1 = zmq.Context()
-    socket_local = context1.socket(zmq.REP)
-    socket_local.bind("tcp://*:5555")
+    # logファイル作成
+    if(not test):
+        with open(log_file, 'w') as the_file:
+            the_file.write('Cycle,Score,Episode \n')
+
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind("tcp://*:5555")
 
     print "Waiting Request..."
 
     while True:
         # Receve Data from C++ Program
-        data =  socket_local.recv()
+        data = socket.recv()
+        #data1, data2=  socket.recv_multipart()
         print "Received"
+        #image1 = np.frombuffer(data1, dtype=np.uint8);
+        #image1 = image1.reshape((544,960,3))
+        #image2 = np.frombuffer(data2, dtype=np.uint8);
+        #image2 = image2.reshape((600,800,3))
+
         image = np.frombuffer(data, dtype=np.uint8);
+        image = image.reshape((600,800,3))
+        '''
+        if(use_chen):
+            red_sign, new_image1 = chen.hogehoge(image1)
+            if(red_sign):
+                send_action(100)
+        '''
 
-        # -------------------ここより上は月曜日修正-----------------------
-
-        red_sign, new_image1
-        if(use_chen and chen.hogehoge(image1)):
-            send_action(100)
-
+        #else:
+            #new_image1 = image1
+        if(use_adati):
+            #detection_image = adati.mainfunction(image2)
+            detection_image = adati.mainfunction(image)
+            new_image = cv2.resize(detection_image,(227,227))
         else:
-            if(use_adati)
-                detection_image = adati.hogehoge(image2)
-                detection_image = detection_image*255
-                image2_g = cv2.resize(detection_image,(227,227))
-            elif:
-                image2_g = lane_detection(image)
-            new_image2 = cv2.merge((image_g,image_g,image_g))
+            #image2_g = lane_detection(image2)
+            new_image = lane_detection(image)
 
-            if(NN):
+        if(NN):
+            if(death):
+                #death,test_action,test_q = agent.check_death(new_image2,death_value,test)
+
+                death,test_action,test_q = agent.check_death(new_image,death_value,test)
+
                 if(death):
-                    death,test_action,test_q = agent.check_death(new_image2,death_value,test)
-                    if(death):
-                        print "Agent is Death"
-                        action = 7
-                    else:
-                        print "Episode START"
-                        if(test):
-                            action = decide_test_action(test_action,test_q)
-                        else:
-                            action = agent.agent_start(new_image2)
-                        episode_start_time = time
-                        time += 1
-                    send_action(action)
-
+                    print "Agent is Death"
+                    action = 100
                 else:
-                    death,test_action,test_q = agent.check_death(new_image2,death_value,test)
-                    if(death):
-                        send_action(7)
-                        score = time - episode_start_time
-                        if(not test):
-                            # --------------logファイルへの書き込み--------------
-                            reward = -1
-                            agent.agent_end(reward,time)
-                        print "Score is %d"%(score)
+                    print "Episode START"
+                    if(test):
+                        action = decide_test_action(test_action,test_q)
                     else:
-                        if(test):
-                            action = decide_test_action(test_action,test_q)
-                            send_action(action)
-                        else:
-                            action, q_now, obs_array = agent.agent_step(new_image2)
-                            send_action(action)
-                            reward = 0
-                            agent.agent_step_update(reward,time,action,q_now,obs_array)
-                        time += 1
+                        #action = agent.agent_start(new_image2)
+                        action = agent.agent_start(new_image)
+                    episode_start_time = time
+                    time += 1
+                send_action(action)
+
             else:
-                q = np.random.rand(13)
-                send_action(6)
+                death,test_action,test_q = agent.check_death(new_image,death_value,test)
+
+                if(death):
+                    send_action(100)
+                    score = time - episode_start_time
+                    if(not test):
+                        # logファイルへの書き込み
+                        with open(log_file, 'a') as the_file:
+                            the_file.write(str(time) +
+                                       ',' + str(score) +
+                                       ',' + str(episode_num) + '\n')
+                        reward = -1
+                        agent.agent_end(reward,time)
+                    print "Score is %d"%(score)
+                    episode_num += 1
+                else:
+                    if(test):
+                        action = decide_test_action(test_action,test_q)
+                        send_action(action)
+                    else:
+                        #action, q_now, obs_array = agent.agent_step(new_image2)
+
+                        action, q_now = agent.agent_step(new_image)
+
+                        send_action(action)
+                        reward = 0
+                        agent.agent_step_update(reward,time,action,q_now)
+                    time += 1
+        else:
+            q = np.random.rand(13)
+            send_action(6)
 
         if(args.image or args.q_value):
             if(args.image):
-                pause_Image_plot(image1,new_image2)
+                #pause_Image_plot(image1,new_image2)
+                pause_Image_plot(new_image)
+                #pause_Image_plot(image)
             elif(args.q_value):
                 print q.ravel()
                 pause_Q_plot(q.ravel())

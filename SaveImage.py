@@ -43,9 +43,9 @@ if __name__ == '__main__':
     folder = args.folder
 
 
-    context1 = zmq.Context()
-    socket_local = context1.socket(zmq.REP)
-    socket_local.bind("tcp://*:5555")
+    context = zmq.Context()
+    socket = context.socket(zmq.REP)
+    socket.bind("tcp://*:5555")
 
 
     print "Waiting Request..."
@@ -53,10 +53,10 @@ if __name__ == '__main__':
     i = 0
     while True:
         # Receve Data from C++ Program
-        #data =  socket_local.recv()
+        #data =  socket.recv()
 
         # Receve Data from C++ Program
-        data1, data2=  socket_local.recv_multipart()
+        data1, data2=  socket.recv_multipart()
 
         print "Received RoboCar's original Image"
         image1 = np.frombuffer(data1, dtype=np.uint8);
@@ -75,7 +75,7 @@ if __name__ == '__main__':
             plt.pause(1.0 / 10**10) #引数はsleep時間
 
         #  Send reply back to client
-        socket_local.send(np.array([1]))
+        socket.send(np.array([1]))
 
         print "---------------------------------------------------------------"
 
