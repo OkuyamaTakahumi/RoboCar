@@ -38,6 +38,9 @@ parser.add_argument('--q_value', '-q', action = "store_true",
 
 parser.add_argument('--test', '-t', action = "store_true",
                     help=u'TEST frags, False => Train')
+
+parser.add_argument('--log-file', '-l', default='reward.log', type=str,
+                    help=u'reward log file name')
 args = parser.parse_args()
 
 if(args.image and args.q_value):
@@ -204,10 +207,10 @@ class CnnDqnAgent(object):
         action, q_now = self.q_net.e_greedy(self.state_, 0)
 
         #return action, eps, q_now, obs_array
-        return action, q_now, obs_array
+        return action, q_now
 
     # 学習系メソッド
-    def agent_step_update(self, reward, time, action, q_now, obs_array):
+    def agent_step_update(self, reward, time, action, q_now):
         # Learning Phase
         self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.state, False)
         self.q_net.experience_replay(time)
@@ -269,9 +272,11 @@ if __name__ == '__main__':
     model_num = args.model_num
     NN = args.NN
     test = args.test
+    log_file = args.log_file
 
     death = True
     time = 0
+    episode_num = 1
 
     agent = CnnDqnAgent();
     agent.agent_init(
@@ -279,7 +284,10 @@ if __name__ == '__main__':
         folder = folder,
         model_num = model_num
         )
-    #-----------------logファイル作成----------------------------
+
+    # logファイル作成
+    with open(log_file, 'w') as the_file:
+        the_file.write('Cycle,Score,Episode \n')
 
     context1 = zmq.Context()
     socket_local = context1.socket(zmq.REP)
@@ -331,19 +339,24 @@ if __name__ == '__main__':
                 send_action(7)
                 score = time - episode_start_time
                 if(not test):
-                    # --------------logファイルへの書き込み--------------
+                    # logファイルへの書き込み
+                    with open(log_file, 'a') as the_file:
+                        the_file.write(str(time) +
+                                   ',' + str(score) +
+                                   ',' + str(episode_num) + '\n')
                     reward = -1
                     agent.agent_end(reward,time)
                 print "Score is %d"%(score)
+                episode_num += 1
             else:
                 if(test):
                     action = decide_test_action(test_action,test_q)
                     send_action(action)
                 else:
-                    action, q_now, obs_array = agent.agent_step(new_image)
+                    action, q_now = agent.agent_step(new_image)
                     send_action(action)
                     reward = 0
-                    agent.agent_step_update(reward,time,action,q_now,obs_array)
+                    agent.agent_step_update(reward,time,action,q_now)
                 time += 1
 
         if(args.image or args.q_value):
