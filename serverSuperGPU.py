@@ -162,6 +162,7 @@ if __name__ == '__main__':
 
         # -------------------ここより上は月曜日修正-----------------------
 
+        red_sign, new_image1
         if(use_chen and chen.hogehoge(image1)):
             send_action(100)
 
