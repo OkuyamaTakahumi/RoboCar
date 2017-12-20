@@ -12,21 +12,30 @@ from q_netRoboCar import QNet
 class CnnDqnAgent(object):
     #アクションリスト(数字じゃなくても大丈夫)
     #actions = [0, 1, 2, 3, 4, 5, 6]
-    actions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    #actions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     cnn_feature_extractor = 'alexnet_feature_extractor.pickle' #1
     model = 'bvlc_alexnet.caffemodel' #2
     model_type = 'alexnet' #3
 
     # AlexNetの出力
-    image_feature_dim = 256 * 6 * 6
+    q_net_input_dim = 256 * 6 * 6
 
     agent_initialized = False
 
     def agent_init(self, **options):
         print ("initializing agent...")
         self.use_gpu = options['use_gpu']
-        self.q_net_input_dim = self.image_feature_dim
+        model_num = options['model_num']
+        #save_modelでもしようするため,selfをつけた
+        self.folder = options["folder"]
+        print "folder = %s"%(self.folder)
+        self.actions = range(options['a_num'])
+        print "actions = ",
+        print self.actions
+        hidden_dim = options['hidden_dim']
+        print "hidden_dim = %d"%(hidden_dim)
+        test = options['test']
 
         if os.path.exists(self.cnn_feature_extractor):
             print("loading... " + self.cnn_feature_extractor),
@@ -35,19 +44,18 @@ class CnnDqnAgent(object):
 
         # 初めてLISを起動する時
         else:
-            self.feature_extractor = CnnFeatureExtractor(self.use_gpu, self.model, self.model_type, self.image_feature_dim)
+            self.feature_extractor = CnnFeatureExtractor(self.use_gpu, self.model, self.model_type, self.q_net_input_dim)
             pickle.dump(self.feature_extractor, open(self.cnn_feature_extractor, 'w'))
             print("pickle.dump finished")
 
-        self.q_net = QNet(self.use_gpu, self.actions, self.q_net_input_dim)
-        self.q_net_sim = QNet(self.use_gpu, self.actions, self.q_net_input_dim)
-
-        model_num = options['model_num']
-        #save_modelでもしようするため,selfをつけた
-        self.folder = options["folder"]
+        self.q_net = QNet(self.use_gpu,self.actions,self.q_net_input_dim,hidden_dim)
+        self.q_net_sim = QNet(self.use_gpu,self.actions,self.q_net_input_dim,hidden_dim)
 
         self.q_net.load_model(self.folder,model_num)
-        self.q_net_sim.load_model(self.folder,0)
+        if(test):
+            self.q_net.load_model(self.folder,model_num)
+        else:
+            self.q_net_sim.load_model(self.folder,0)
 
     # 行動取得系,state更新系メソッド
     def agent_start(self, image):
@@ -133,7 +141,7 @@ class CnnDqnAgent(object):
             print "------------------Save Model------------------"
             self.q_net.save_model(self.folder,time)
 
-    def check_death(self,image,death_value,test):
+    def check_death(self,image,death_value):
         # image -> obs_array
         obs_array = self.feature_extractor.feature(image)
         self.state = np.asanyarray([obs_array], dtype=np.uint8)
@@ -143,15 +151,11 @@ class CnnDqnAgent(object):
             self.state_ = cuda.to_gpu(self.state_)
 
         # Generate an Action by e-greedy action selection
-        #q_max = self.q_net.sim_q_func(self.state_)
-        if(test):
-            action,q = self.q_net.e_greedy(self.state_, 0)
-        else:
-            action,q = self.q_net_sim.e_greedy(self.state_, 0)
+        action,q = self.q_net_sim.e_greedy(self.state_, 0)
 
         q_max = q.ravel()[action]
         print "Model_Sim Q_MAX:%3f"%(q_max)
         death = q_max < death_value
-
         print "Chack Death : %r"%(death)
+
         return death, action, q

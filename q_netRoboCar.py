@@ -15,13 +15,13 @@ class QNet:
     #target_model_update_freq = 10**4  # Target update frequancy. original: 10^4
     target_model_update_freq = 10**2  # Target update frequancy. original: 10^4
     #data_size = 10**5  # Data size of history. original: 10^6
-    data_size = 10**3  # Data size of history. original: 10^6
+    data_size = 10**4  # Data size of history. original: 10^6
     hist_size = 1 #original: 4
     # モデルを保存する頻度
     #save_model_freq = 10**4
-    save_model_freq = 10**2
+    save_model_freq = 10**3
 
-    def __init__(self, use_gpu, enable_controller, dim):
+    def __init__(self, use_gpu, enable_controller, dim, h_dim):
         self.use_gpu = use_gpu
         self.num_of_actions = len(enable_controller)
         self.enable_controller = enable_controller
@@ -30,9 +30,7 @@ class QNet:
         print("Initializing Q-Network...")
 
 
-        #hidden_dim = 256
-        hidden_dim = 512
-
+        hidden_dim = h_dim
 
         self.model = FunctionSet(
             l4=F.Linear(self.dim*self.hist_size, hidden_dim,
