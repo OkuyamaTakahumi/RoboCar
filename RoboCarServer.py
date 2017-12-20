@@ -12,7 +12,7 @@ import argparse
 
 from DQN import CnnDqnAgent
 #from Chen import
-from AdatiDir.Adati import LaneDetection
+#from AdatiDir.Adati import LaneDetection
 
 parser = argparse.ArgumentParser(description='ml-agent-for-unity')
 
@@ -70,8 +70,8 @@ def lane_detection(img):
 
     kernel = np.ones((10,10),np.float32)/100
     img_resize = cv2.filter2D(img_resize,-1,kernel)
-    img_threshold = cv2.threshold(img_resize,200,255,cv2.THRESH_BINARY)[1]
-    img_threshold = cv2.rectangle(img_threshold,(0,0),(227,10),(0,0,0),-1)
+    img_threshold = cv2.threshold(img_resize,180,255,cv2.THRESH_BINARY)[1]
+    #img_threshold = cv2.rectangle(img_threshold,(0,0),(227,10),(0,0,0),-1)
     return cv2.merge((img_threshold,img_threshold,img_threshold))
 
 # def pause_Image_plot(img1,img2):
@@ -157,6 +157,7 @@ if __name__ == '__main__':
     death = True
     time = 0
     episode_num = 1
+    score = 0
 
     if(use_adati):
         print "Use Adati's NN"
@@ -232,10 +233,12 @@ if __name__ == '__main__':
 
                 if(death):
                     ep_score = time - episode_start_time
+                    print "Episode Score is %d"%(ep_score)
                     action = 100 # back
                     if(not test):
                         score += ep_score
-                        if(episode_num%50 == 0):
+                        if(episode_num%10 == 0):
+                            print "Finish %d Episode"%(episode_num)
                             action = 101 #stop
                             # logファイルへの書き込み
                             with open(log_file, 'a') as the_file:
@@ -245,8 +248,10 @@ if __name__ == '__main__':
                         send_action(action)
                         reward = -1
                         agent.agent_end(reward,time)
-                    print "Episode Score is %d"%(ep_score)
+                    else:
+                        send_action(action)
                     episode_num += 1
+
                 else:
                     if(test):
                         action,q_max = decide_test_action(test_action,test_q,a_num)

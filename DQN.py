@@ -53,7 +53,7 @@ class CnnDqnAgent(object):
 
         self.q_net.load_model(self.folder,model_num)
         if(test):
-            self.q_net.load_model(self.folder,model_num)
+            self.q_net_sim.load_model(self.folder,model_num)
         else:
             self.q_net_sim.load_model(self.folder,0)
 
@@ -89,7 +89,7 @@ class CnnDqnAgent(object):
             print("Model Updated")
             self.q_net.target_model_update()
 
-        print('episode finished. Reward:%.1f' % (reward))
+        print('episode finished Reward:%.1f' % (reward))
 
         # Model Save
         if np.mod(time,self.q_net.save_model_freq) == 0:
