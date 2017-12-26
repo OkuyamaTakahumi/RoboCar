@@ -10,18 +10,14 @@ from cnn_feature_extractorRobo import CnnFeatureExtractor
 from q_netRoboCar import QNet
 
 class CnnDqnAgent(object):
-    #アクションリスト(数字じゃなくても大丈夫)
-    #actions = [0, 1, 2, 3, 4, 5, 6]
-    #actions = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-
     cnn_feature_extractor = 'alexnet_feature_extractor.pickle' #1
     model = 'bvlc_alexnet.caffemodel' #2
     model_type = 'alexnet' #3
 
     # AlexNetの出力
     q_net_input_dim = 256 * 6 * 6
-
     agent_initialized = False
+    q_max_max = 0.0
 
     def agent_init(self, **options):
         print ("initializing agent...")
@@ -30,7 +26,7 @@ class CnnDqnAgent(object):
         #save_modelでもしようするため,selfをつけた
         self.folder = options["folder"]
         print "folder = %s"%(self.folder)
-        self.actions = range(options['a_num'])
+        self.actions = range(options['a_num'])#数字じゃなくても大丈夫
         print "actions = ",
         print self.actions
         hidden_dim = options['hidden_dim']
@@ -152,10 +148,13 @@ class CnnDqnAgent(object):
 
         # Generate an Action by e-greedy action selection
         action,q = self.q_net_sim.e_greedy(self.state_, 0)
-
         q_max = q.ravel()[action]
+        
+        self.q_max_max = max(q_max,self.q_max_max)
+        death_value = self.q_max_max/2.0
+
+        print "death_value : %3f"%(death_value)
         print "Model_Sim Q_MAX:%3f"%(q_max)
         death = q_max < death_value
         print "Chack Death : %r"%(death)
-
         return death, action, q

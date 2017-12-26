@@ -143,9 +143,6 @@ def send_action(action):
 
 
 if __name__ == '__main__':
-    # model_simのQ_MAXがこの値より低かったらEpisode終了
-    death_value = 10
-
     gpu = args.gpu
     use_adati = args.adati
     folder = args.folder
@@ -213,7 +210,7 @@ if __name__ == '__main__':
 
         if(NN):
             if(death):
-                death,test_action,test_q = agent.check_death(new_image,death_value)
+                death,test_action,test_q = agent.check_death(new_image)
 
                 if(death):
                     print "Agent is Death"
@@ -229,7 +226,7 @@ if __name__ == '__main__':
                 send_action(action)
 
             else:
-                death,test_action,test_q = agent.check_death(new_image,death_value)
+                death,test_action,test_q = agent.check_death(new_image)
 
                 if(death):
                     ep_score = time - episode_start_time
@@ -258,7 +255,6 @@ if __name__ == '__main__':
                         send_action(action)
                     else:
                         action, q_now = agent.agent_step(new_image)
-
                         send_action(action)
                         reward = 0
                         agent.agent_step_update(reward,time,action,q_now)
@@ -279,6 +275,5 @@ if __name__ == '__main__':
             if(args.q_value):
                 pause_Q_plot(q.ravel(),a_num)
             plt.pause(1.0 / 10**10) #引数はsleep時間
-            #plt.pause(1.0 / 10**10) #引数はsleep時間
 
         print "---------------------------------------------------------"
