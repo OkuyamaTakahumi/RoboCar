@@ -13,7 +13,8 @@ class LaneDetection:
     def __init__(self):
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-        LOAD_MODEL_NAME = "12-07-13-15_1400.npz"
+        LOAD_MODEL_NAME = "1lane.npz"
+        #LOAD_MODEL_NAME = "2lane.npz"
 
         # original_segmentations = Image.open("./palette.png")
         # palette = original_segmentations.getpalette()
