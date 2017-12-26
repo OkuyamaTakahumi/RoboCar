@@ -234,7 +234,7 @@ if __name__ == '__main__':
                     action = 100 # back
                     if(not test):
                         score += ep_score
-                        if(episode_num%10 == 0):
+                        if(episode_num%3 == 0):
                             print "Finish %d Episode"%(episode_num)
                             action = 101 #stop
                             # logファイルへの書き込み

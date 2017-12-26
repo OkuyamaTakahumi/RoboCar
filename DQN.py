@@ -137,7 +137,7 @@ class CnnDqnAgent(object):
             print "------------------Save Model------------------"
             self.q_net.save_model(self.folder,time)
 
-    def check_death(self,image,death_value):
+    def check_death(self,image):
         # image -> obs_array
         obs_array = self.feature_extractor.feature(image)
         self.state = np.asanyarray([obs_array], dtype=np.uint8)
@@ -149,7 +149,7 @@ class CnnDqnAgent(object):
         # Generate an Action by e-greedy action selection
         action,q = self.q_net_sim.e_greedy(self.state_, 0)
         q_max = q.ravel()[action]
-        
+
         self.q_max_max = max(q_max,self.q_max_max)
         death_value = self.q_max_max/2.0
 
