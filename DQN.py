@@ -134,7 +134,7 @@ class CnnDqnAgent(object):
 
         # save model
         if np.mod(time,self.q_net.save_model_freq) == 0:
-            print "------------------Save Model------------------"
+            print "-------------------Save Model-------------------"
             self.q_net.save_model(self.folder,time)
 
     def check_death(self,image):
