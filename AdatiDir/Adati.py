@@ -21,7 +21,7 @@ class LaneDetection:
 
         # モデルの設定
         self.model = FCN()
-        serializers.load_npz(LOAD_MODEL_NAME, self.model)
+        serializers.load_npz("./AdatiDir/%s"%(LOAD_MODEL_NAME), self.model)
 
         optimizer = optimizers.Adam()
         optimizer.setup(self.model)

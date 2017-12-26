@@ -24,7 +24,8 @@ class CnnFeatureExtractor:
         self.func = caffe.CaffeFunction(self.model)
         print('Loaded', file=sys.stderr)
         if self.gpu >= 0:
-            cuda.get_device(self.gpu).use()
+            #cuda.get_device(self.gpu).use()
+            cuda.get_device().use()
             self.func.to_gpu()
 
         if self.model_type == 'alexnet':
@@ -35,12 +36,12 @@ class CnnFeatureExtractor:
             #del self.func.layers[13:23]
             #self.outname = 'conv5'
 
-            
+
         cropwidth = 256 - self.in_size
         start = cropwidth // 2
         stop = start + self.in_size
         self.mean_image = mean_image[:, start:stop, start:stop].copy()
-                
+
     def predict(self, x):
         y, = self.func(inputs={'data': x}, outputs=[self.outname], train=False)
         return y
@@ -56,7 +57,7 @@ class CnnFeatureExtractor:
 
         if self.gpu >= 0:
             x_data=cuda.to_gpu(x_data)
-        
+
         x = chainer.Variable(x_data, volatile=True)
         feature = self.predict(x)
 
@@ -67,9 +68,3 @@ class CnnFeatureExtractor:
             feature = feature.data.reshape(self.out_dim)
 
         return feature * 255.0
-
-     
-
-
-    
-
