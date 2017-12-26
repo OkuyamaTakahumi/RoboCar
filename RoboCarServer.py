@@ -12,7 +12,7 @@ import argparse
 
 from DQN import CnnDqnAgent
 #from Chen import
-#from AdatiDir.Adati import LaneDetection
+from AdatiDir.Adati import LaneDetection
 
 parser = argparse.ArgumentParser(description='ml-agent-for-unity')
 
@@ -21,7 +21,7 @@ parser.add_argument('--gpu', '-g', default=-1, type=int,
 
 parser.add_argument('--folder', '-f', default='ModelRobo3Real', type=str,
                     help=u'モデルの存在するフォルダ名')
-parser.add_argument('--model_num', '-m', default=600000,type=int,
+parser.add_argument('--model_num', '-m', default=0,type=int,
                     help=u'最初にロードするモデルの番号')
 
 parser.add_argument('--NN', '-n', action = "store_true",
