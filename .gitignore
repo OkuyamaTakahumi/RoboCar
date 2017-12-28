@@ -1,9 +1,8 @@
 *-environment
-Images*/
 *Model*
 photo/
 *hoge*/
-RoboCarImage/
+*Image*/
 *.csv
 
 fetch.sh

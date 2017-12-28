@@ -94,18 +94,9 @@ class CnnDqnAgent(object):
 
     # 行動取得系,state更新系メソッド
     def agent_step(self, image):
-        #obs_array = self.feature_extractor.feature(image)
-
-        #self.state = np.asanyarray([obs_array], dtype=np.uint8)
-
-        #self.state_ = np.asanyarray(self.state.reshape(1, self.q_net.hist_size, self.q_net_input_dim), dtype=np.float32)
-        #if self.use_gpu >= 0:
-            #self.state_ = cuda.to_gpu(self.state_)
-
         # Generate an Action by e-greedy action selection
         action, q_now = self.q_net.e_greedy(self.state_, 0)
 
-        #return action, eps, q_now, obs_array
         return action, q_now
 
     # 学習系メソッド
@@ -125,8 +116,8 @@ class CnnDqnAgent(object):
         else:
             q_max = np.max(q_now)
 
-        print('Step:%d  Action:%d  Reward:%.1f Q_max:%3f' % (
-            time, self.q_net.action_to_index(action), reward, q_max))
+        print('Action:%d  Reward:%.1f Q_max:%3f' % (
+            self.q_net.action_to_index(action), reward, q_max))
 
         self.last_action = copy.deepcopy(action)
         self.last_state = self.state.copy()

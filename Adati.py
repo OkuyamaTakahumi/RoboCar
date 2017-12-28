@@ -4,13 +4,15 @@ import numpy as np
 from chainer import optimizers, Variable, serializers, Function, cuda
 import cv2
 import os
-from FCN import FCN
+from AdatiDir.FCN import FCN
 from PIL import Image
 import time
 
+from image_processing import ImageProcessing
 
-class LaneDetection:
-    def __init__(self):
+class ImageProcessing_adati(ImageProcessing):
+    def __init__(self,plot_image_num,plot_q_value):
+        super(ImageProcessing_adati, self).__init__(plot_image_num,plot_q_value)
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
         #LOAD_MODEL_NAME = "1lane.npz"
@@ -29,7 +31,7 @@ class LaneDetection:
         cuda.get_device().use()
         self.model.to_gpu()
 
-    def mainfunction(self, img):
+    def lane_detection(self, img):
         # start = time.time()
 
         print "Adati Detection"
@@ -48,24 +50,14 @@ class LaneDetection:
         imgarray = cpu[0, 1, :, :]
         imgarray[:, :] = np.round(imgarray[:, :])  # 四捨五入
 
-        #imgarray = imgarray * 255
         imgarray = np.array(imgarray*255,dtype = np.uint8)
+        imgarray = cv2.resize(imgarray,(227,227))
+        return imgarray
 
-        # img = Image.fromarray(np.uint8(imgarray))
-        return_img = cv2.merge((imgarray, imgarray, imgarray))
-        return return_img
-
-# ------------------------------------------------------------------------------------
-
-# start = time.time()
-# img = cv2.imread("./00000_0.000000.png")
-# img = img.transpose(2, 0, 1).astype(np.float32)
-#
-# hoge = LaneDetection()
-# img = hoge.mainfunction(img, 0)
-#
-# # new_img = cv2.merge((img, img, img))
-# # print img.shape
-#
-# img2 = np.frombuffer(img,dtype = "uint8")
-# print img2.shape
+if __name__ == '__main__':
+    import time
+    start_time = time.time()
+    img_pro = ImageProcessing_adati(2,False)
+    img_pro.main_check()
+    run_time = time.time()-start_time
+    print "Run Time : %.3f"%(run_time)

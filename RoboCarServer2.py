@@ -11,7 +11,7 @@ import zmq
 import argparse
 
 from DQN import CnnDqnAgent
-from AdatiDir.Adati import LaneDetection
+from Adati import ImageProcessing_adati
 from image_processing import ImageProcessing
 
 parser = argparse.ArgumentParser(description='ml-agent-for-unity')
@@ -39,64 +39,6 @@ parser.add_argument('--test', '-t', action = "store_true",
 parser.add_argument('--log-file', '-l', default='reward.log', type=str,
                     help=u'reward log file name')
 args = parser.parse_args()
-
-if(args.image==2 and args.q_value):
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-    plt.gray()
-elif(args.image==1 and args.q_value):
-    fig, (ax1, ax3) = plt.subplots(1, 2)
-    plt.gray()
-elif(args.image==2):
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    plt.gray()
-elif(args.image==1):
-    fig, ax1 = plt.subplots(1, 1)
-    plt.gray()
-elif(args.q_value):
-    fig, ax3 = plt.subplots(1, 1)
-
-
-def to_plot(img):
-    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-def pause_Image_plot1(img1):
-    ax1.cla()
-    #ax1.tick_params(labelleft="off",labelbottom='off')
-    #ax1.title.set_text('Lane Detection Image')
-    ax1.imshow(img1)
-
-def pause_Image_plot2(img1,img2):
-    ax1.cla()
-    ax2.cla()
-    #ax1.tick_params(labelleft="off",labelbottom='off')
-    #ax2.tick_params(labelleft="off",labelbottom='off')
-    #ax1.title.set_text('Original Image')
-    #ax2.title.set_text('Lane Detection Image')
-    ax1.imshow(img1)
-    ax2.imshow(img2)
-
-#Q関数のplot
-def pause_Q_plot(q, a_num):
-    ax3.cla()
-    #ax3.title.set_text('Q_values of each action')
-    actions = range(a_num)
-
-    max_q_abs = max(abs(q))
-    if max_q_abs != 0:
-        q = q / float(max_q_abs)
-
-    ax3.set_xticks(actions)
-    if(a_num==7):
-        ax3.set_xticklabels(['-30','-20','-10','0','10','20','30'], rotation=0, fontsize='small')
-    elif(a_num==13):
-        ax3.set_xticklabels(['-30','-25','-20','-15','-10','-5','0','5','10','15','20','25','30'], rotation=0, fontsize='small')
-    ax3.set_xlabel("Action") # x軸のラベル
-    ax3.set_ylabel("Q_Value") # y軸のラベル
-    ax3.set_ylim(-1.1, 1.1)  # yを-1.1-1.1の範囲に限定
-    ax3.set_xlim(-1, a_num) # xを-0.5-7.5の範囲に限定
-    ax3.hlines(y=0, xmin=-1, xmax=a_num, colors='r', linewidths=2) #y=0の直線
-
-    ax3.bar(actions,q,align="center")
 
 def decide_test_action(action,q,a_num):
     q_max = q.ravel()[action]
@@ -142,11 +84,14 @@ if __name__ == '__main__':
     episode_num = 1
     score = 0
 
-    img_pro = ImageProcessing()
+
 
     if(use_adati):
         print "Use Adati's NN"
-        adati = LaneDetection()
+        img_pro = ImageProcessing_adati(args.image,args.q_value)
+    else:
+        img_pro = ImageProcessing(args.image,args.q_value)
+
 
     a_num = 13
     hidden_dim = 256
@@ -196,7 +141,7 @@ if __name__ == '__main__':
             new_image_g = cv2.resize(detection_image,(227,227))
 
         else:
-            new_image_g = img_pro.lane_detection2(image)
+            new_image_g = img_pro.lane_detection(image)
         new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
 
         if(NN):
@@ -251,23 +196,12 @@ if __name__ == '__main__':
                         agent.agent_step_update(reward,cycle_counter,action,q_now)
                     cycle_counter += 1
         else:
-            q = np.random.rand(a_num)
+            test_q = np.random.rand(a_num)
             action = 3
             action,q_max = decide_test_action(action,q,a_num)
             send_action(action,receive_time)
 
-        if(args.image>0 or args.q_value):
-            #if(test):
-                #fig.suptitle("Q_Max : %f"%(q_max),fontsize=24)
-            if(args.image==1):
-                pause_Image_plot1(image)
-            elif(args.image==2):
-                #detect_image = new_image
-                detect_image = img_pro.make_detection_image(image,new_image_g)
-                pause_Image_plot2(to_plot(image),detect_image)
-            if(args.q_value):
-                pause_Q_plot(test_q.ravel(),a_num)
-            plt.pause(1.0 / 10**10) #引数はsleep時間
+        img_pro.plot(image,new_image,test_q,a_num)
 
         if(cycle_counter==1000):
             print "1000cycle finish"
