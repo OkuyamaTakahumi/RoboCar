@@ -13,8 +13,8 @@ class LaneDetection:
     def __init__(self):
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-        LOAD_MODEL_NAME = "1lane.npz"
-        #LOAD_MODEL_NAME = "2lane.npz"
+        #LOAD_MODEL_NAME = "1lane.npz"
+        LOAD_MODEL_NAME = "2lane.npz"
 
         # original_segmentations = Image.open("./palette.png")
         # palette = original_segmentations.getpalette()
@@ -26,13 +26,13 @@ class LaneDetection:
         optimizer = optimizers.Adam()
         optimizer.setup(self.model)
 
-        cuda.get_device(0).use()
+        cuda.get_device().use()
         self.model.to_gpu()
 
     def mainfunction(self, img):
         # start = time.time()
 
-        # print "start"
+        print "Adati Detection"
 
         img_resize = cv2.resize(img, (224, 224))
         img_resize = img_resize.transpose(2, 0, 1)

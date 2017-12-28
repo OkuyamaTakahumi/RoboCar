@@ -63,18 +63,31 @@ def to_grayscale(img):
     return grayed
 
 # reshape済みの配列が引数,3chanelのimgをreturn
+
 def lane_detection(img):
     img_gray = to_grayscale(img)
 
-    img_resize = cv2.resize(img_gray,(227,227))
-
-    kernel = np.ones((10,10),np.float32)/100
-    img_resize = cv2.filter2D(img_resize,-1,kernel)
+    kernel = np.ones((5,5),np.float32)/25
+    img_resize = cv2.filter2D(img_gray,-1,kernel)
+    #img_threshold = cv2.threshold(img_resize,120,255,cv2.THRESH_BINARY)[1]
     img_threshold = cv2.threshold(img_resize,180,255,cv2.THRESH_BINARY)[1]
     #img_threshold = cv2.rectangle(img_threshold,(0,0),(227,10),(0,0,0),-1)
-    return cv2.merge((img_threshold,img_threshold,img_threshold))
+    return img_threshold
+'''
+def lane_detection(img):
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    #src画像から指定した色の範囲にもとづいてマスク画像を生成する
+    mask_white = cv2.inRange(gray_image, 200, 255)
+    return mask_white
+'''
 
-# def pause_Image_plot(img1,img2):
+def make_detect_image(src,mask):
+    flip_mask = 255 - mask
+    masked_src = cv2.bitwise_and(src,src, mask=flip_mask)
+    black_image = np.zeros((227, 227), dtype=np.uint8)
+    red_mask = cv2.merge((black_image,black_image,mask))
+    return to_plot(masked_src + red_mask)
+
 def pause_Image_plot1(img1):
     ax1.cla()
     #ax1.tick_params(labelleft="off",labelbottom='off')
@@ -164,7 +177,7 @@ if __name__ == '__main__':
     hidden_dim = 256
     if(folder=="ModelRobo3Real" or folder=="ModelRobo4Real"):
         a_num = 7
-    elif(folder=="ModelRobo5_2Real" or folder=="ModelRobo6_2Real"):
+    elif(folder=="ModelRobo5_2Real" or folder=="ModelRobo6_2Real" or folder=="ModelRobo6_2_1Real"):
         hidden_dim = 512
     else:
         print u"There is not \"%s\" folder"%(folder)
@@ -200,13 +213,18 @@ if __name__ == '__main__':
         #print "Received"
 
         image = np.frombuffer(data, dtype=np.uint8);
-        image = image.reshape((600,800,3))
 
-        #if(use_adati):
-            #detection_image = adati.mainfunction(image)
-            #new_image = cv2.resize(detection_image,(227,227))
-        #else:
-        new_image = lane_detection(image)
+        image = image.reshape((227,227))
+        #image = image.reshape((227,227,3))
+
+        if(use_adati):
+            detection_image = adati.mainfunction(image)
+            new_image = cv2.resize(detection_image,(227,227))
+            #new_image = lane_detection(new_image)
+        else:
+            #new_image_g = lane_detection(image)
+            #new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
+            new_image = cv2.merge((image,image,image))
 
         if(NN):
             if(death):
@@ -269,11 +287,15 @@ if __name__ == '__main__':
             #if(test):
                 #fig.suptitle("Q_Max : %f"%(q_max),fontsize=24)
             if(args.image==1):
-                pause_Image_plot1(new_image)
+                pause_Image_plot1(image)
             elif(args.image==2):
-                pause_Image_plot2(to_plot(image),new_image)
+
+                #detect_image = new_image
+                detect_image = make_detect_image(image,new_image_g)
+
+                pause_Image_plot2(to_plot(image),detect_image)
             if(args.q_value):
-                pause_Q_plot(q.ravel(),a_num)
+                pause_Q_plot(test_q.ravel(),a_num)
             plt.pause(1.0 / 10**10) #引数はsleep時間
 
         print "---------------------------------------------------------"
