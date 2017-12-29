@@ -36,9 +36,9 @@ class ImageProcessing(object):
     def lane_detection(self,img):
         img_gray = self.to_grayscale(img)
 
-        #kernel = np.ones((5,5),np.float32)/25
-        #img_resize = cv2.filter2D(img_gray,-1,kernel)
-        #mask = cv2.threshold(img_resize,180,255,cv2.THRESH_BINARY)[1]
+        kernel = np.ones((5,5),np.float32)/25
+        img_gray = cv2.filter2D(img_gray,-1,kernel)
+        #mask = cv2.threshold(img_gray,180,255,cv2.THRESH_BINARY)[1]
 
         mask = cv2.inRange(img_gray, 200, 255)
         return mask
@@ -52,14 +52,21 @@ class ImageProcessing(object):
 
     def save_image(self,img,photo_id):
         img_name = '%d.png'%(photo_id)
-        cv2.imwrite('./SaveImage/'+img_name,img)
+        if(np.sum(img[70:,:113])/255==0):
+            cv2.imwrite('./SaveImageLeft/'+img_name,img)
+        elif(np.sum(img[70:,113:])/255==0):
+            cv2.imwrite('./SaveImageRight/'+img_name,img)
+        else :
+            cv2.imwrite('./SaveImageForward/'+img_name,img)
+
+        #cv2.imwrite('./SaveImage/'+img_name,img)
         print 'Save Finish : %s'%(img_name)
 
     def plot(self,img1,img2,q,a_num=13):
         if(self.plot_image_num == 1):
             self.ax1.cla()
             #self.ax1.tick_params(labelleft="off",labelbottom='off')
-            #self.ax1.title.set_text('Lane Detection Image')
+            self.ax1.title.set_text('%.0f , %.0f'%(np.sum(img1[70:,:113])/255,np.sum(img1[70:,113:])/255))
             self.ax1.imshow(img1)
             if(self.plot_q_value):
                 self.plot_q(q,a_num)
@@ -92,7 +99,10 @@ class ImageProcessing(object):
         self.ax3.bar(actions,q,align="center")
 
     def main_check(self):
-        imgDir_path = './RoboCarImage/'
+        q = np.random.rand(13)
+
+        #imgDir_path = './RoboCarImage/'
+        imgDir_path = './SaveImage/'
 
         file_list = os.listdir(imgDir_path)
         for File in file_list:
@@ -104,15 +114,15 @@ class ImageProcessing(object):
             image = cv2.resize(image,(227,227))
             new_image_g = self.lane_detection(image)
             new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
-            #self.save_image(new_image,i)
-            q = np.random.rand(13)
-            self.plot(self.to_plot(image),new_image,q.ravel())
+            self.save_image(new_image_g,i)
+            #self.plot(new_image_g,new_image,q.ravel())
+            #self.plot(self.to_plot(image),new_image,q.ravel())
             #self.plot(self.to_plot(image),self.make_detection_image(image,new_image_g),q.ravel())
 
 if __name__ == '__main__':
     import time
     start_time = time.time()
-    img_pro = ImageProcessing(2,False)
+    img_pro = ImageProcessing(1,False)
     img_pro.main_check()
     run_time = time.time()-start_time
     print "Run Time : %.3f"%(run_time)

@@ -78,6 +78,8 @@ if __name__ == '__main__':
     NN = args.NN
     test = args.test
     log_file = args.log_file
+    image_num = args.image
+    plot_q_value = args.q_value
 
     death = True
     cycle_counter = 0
@@ -88,10 +90,9 @@ if __name__ == '__main__':
 
     if(use_adati):
         print "Use Adati's NN"
-        img_pro = ImageProcessing_adati(args.image,args.q_value)
+        img_pro = ImageProcessing_adati(image_num,plot_q_value)
     else:
-        img_pro = ImageProcessing(args.image,args.q_value)
-
+        img_pro = ImageProcessing(image_num,plot_q_value)
 
     a_num = 13
     hidden_dim = 256
@@ -133,15 +134,9 @@ if __name__ == '__main__':
         image = np.frombuffer(data, dtype=np.uint8);
         image = image.reshape((227,227,3))
 
-        #image = image.reshape((227,227))
-        #new_image = cv2.merge((image,image,image))
+        #new_image_g = image = image.reshape((227,227))
 
-        if(use_adati):
-            detection_image = adati.mainfunction(image)
-            new_image_g = cv2.resize(detection_image,(227,227))
-
-        else:
-            new_image_g = img_pro.lane_detection(image)
+        new_image_g = img_pro.lane_detection(image)
         new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
 
         if(NN):
