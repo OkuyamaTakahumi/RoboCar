@@ -47,7 +47,7 @@ class ImageProcessing(object):
         flip_mask = 255-mask
         src_copy = src.copy()
         src_copy[:,:,0] = cv2.bitwise_and(src_copy[:,:,0],src_copy[:,:,0], mask=flip_mask)
-        #src_copy[:,:,1] = cv2.bitwise_and(src_copy[:,:,1],src_copy[:,:,1], mask=flip_mask)
+        src_copy[:,:,1] = cv2.bitwise_and(src_copy[:,:,1],src_copy[:,:,1], mask=flip_mask)
         return src_copy
 
     def save_image(self,img,photo_id,dir_path='./SaveImage/'):
@@ -55,18 +55,11 @@ class ImageProcessing(object):
         cv2.imwrite(dir_path+img_name,img)
         print 'Save Finish : %s'%(img_name)
 
-    def plot(self,img1,img2,q,a_num=13):
+    def plot(self,img1,img2,q,title='',a_num=13):
         if(self.plot_image_num == 1):
             self.ax1.cla()
             #self.ax1.tick_params(labelleft="off",labelbottom='off')
-            if(np.sum(img1[70:,:113])/255==0):
-                title = 'Left'
-            elif(np.sum(img1[70:,113:])/255==0):
-                title = 'Right'
-            else :
-                title = 'Forward'
-
-            #self.ax1.title.set_text('%.0f , %.0f'%(np.sum(img1[70:,:113])/255,np.sum(img1[70:,113:])/255))
+            #self.ax1.title.set_text('%.0f , %.0f'%(np.sum(img1[80:,:113])/255,np.sum(img1[80:,113:])/255))
             self.ax1.title.set_text(title)
             self.ax1.imshow(img1)
             if(self.plot_q_value):
@@ -76,13 +69,14 @@ class ImageProcessing(object):
         elif(self.plot_image_num == 2):
             self.ax1.cla()
             self.ax2.cla()
+            self.ax2.title.set_text(title)
             self.ax1.imshow(img1)
             self.ax2.imshow(img2)
             if(self.plot_q_value):
                 self.plot_q(q,a_num)
             plt.pause(1.0 / 10**10)
 
-    def plot_q(self,q,a_num):
+    def plot_q(self,q,a_num=13):
         self.ax3.cla()
         actions = range(a_num)
         max_q_abs = max(abs(q))
@@ -93,6 +87,8 @@ class ImageProcessing(object):
             self.ax3.set_xticklabels(['-30','-20','-10','0','10','20','30'], rotation=0, fontsize='small')
         elif(a_num==13):
             self.ax3.set_xticklabels(['-30','-25','-20','-15','-10','-5','0','5','10','15','20','25','30'], rotation=0, fontsize='small')
+        elif(a_num==3):
+            self.ax3.set_xticklabels(['left','forward','right'], rotation=0, fontsize='small')
         self.ax3.set_xlabel("Action") # x軸のラベル
         self.ax3.set_ylabel("Q_Value") # y軸のラベル
         self.ax3.set_ylim(-1.1, 1.1)  # yを-1.1-1.1の範囲に限定
@@ -101,7 +97,7 @@ class ImageProcessing(object):
         self.ax3.bar(actions,q,align="center")
 
     def main_check(self):
-        q = np.random.rand(13)
+        q = np.random.rand(7)
 
         imgDir_path = './RoboCarImage/'
         #imgDir_path = './SaveImage/'
@@ -116,26 +112,30 @@ class ImageProcessing(object):
             image = cv2.resize(image,(227,227))
             new_image_g = self.lane_detection(image)
             new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
-            #self.save_image(new_image_g,i)
-            '''
-            if(np.sum(new_image_g[70:,:113])/255==0):
-                self.save_image(new_image_g, i, './SaveImageLeft/')
-            elif(np.sum(new_image_g[70:,113:])/255==0):
-                self.save_image(new_image_g, i, './SaveImageRight/')
+            #self.save_image(image,i+224)
+
+            if(np.sum(new_image_g[80:,:113])/255==0):
+                q = np.array([1,np.random.rand(),np.random.rand()*0.2])
+                title = 'Left'
+                #self.save_image(new_image_g, i, './SaveImageLeft/')
+            elif(np.sum(new_image_g[80:,113:])/255==0):
+                q = np.array([np.random.rand()*0.2,np.random.rand(),1])
+                title = 'Right'
+                #self.save_image(new_image_g, i, './SaveImageRight/')
             else :
-                self.save_image(new_image_g, i, './SaveImageForward/')
-            '''
+                q = np.array([np.random.rand()*0.2,1,np.random.rand()*0.2])
+                title = 'Forward'
+                #self.save_image(new_image_g, i, './SaveImageForward/')
 
-
-
-            self.plot(new_image_g,new_image,q.ravel())
+            #self.plot(new_image_g,new_image,q.ravel())
             #self.plot(self.to_plot(image),new_image,q.ravel())
-            #self.plot(self.to_plot(image),self.make_detection_image(image,new_image_g),q.ravel())
+            self.plot(self.to_plot(image),self.to_plot(self.make_detection_image(image,new_image_g)),q.ravel(),title=title,a_num=3)
+
 
 if __name__ == '__main__':
     import time
     start_time = time.time()
-    img_pro = ImageProcessing(1,False)
+    img_pro = ImageProcessing(2,True)
     img_pro.main_check()
     run_time = time.time()-start_time
     print "Run Time : %.3f"%(run_time)
