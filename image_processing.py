@@ -50,27 +50,29 @@ class ImageProcessing(object):
         #src_copy[:,:,1] = cv2.bitwise_and(src_copy[:,:,1],src_copy[:,:,1], mask=flip_mask)
         return src_copy
 
-    def save_image(self,img,photo_id):
-        img_name = '%d.png'%(photo_id)
-        if(np.sum(img[70:,:113])/255==0):
-            cv2.imwrite('./SaveImageLeft/'+img_name,img)
-        elif(np.sum(img[70:,113:])/255==0):
-            cv2.imwrite('./SaveImageRight/'+img_name,img)
-        else :
-            cv2.imwrite('./SaveImageForward/'+img_name,img)
-
-        #cv2.imwrite('./SaveImage/'+img_name,img)
+    def save_image(self,img,photo_id,dir_path='./SaveImage/'):
+        img_name = '%05d.png'%(photo_id)
+        cv2.imwrite(dir_path+img_name,img)
         print 'Save Finish : %s'%(img_name)
 
     def plot(self,img1,img2,q,a_num=13):
         if(self.plot_image_num == 1):
             self.ax1.cla()
             #self.ax1.tick_params(labelleft="off",labelbottom='off')
-            self.ax1.title.set_text('%.0f , %.0f'%(np.sum(img1[70:,:113])/255,np.sum(img1[70:,113:])/255))
+            if(np.sum(img1[70:,:113])/255==0):
+                title = 'Left'
+            elif(np.sum(img1[70:,113:])/255==0):
+                title = 'Right'
+            else :
+                title = 'Forward'
+
+            #self.ax1.title.set_text('%.0f , %.0f'%(np.sum(img1[70:,:113])/255,np.sum(img1[70:,113:])/255))
+            self.ax1.title.set_text(title)
             self.ax1.imshow(img1)
             if(self.plot_q_value):
                 self.plot_q(q,a_num)
             plt.pause(1.0 / 10**10)
+
         elif(self.plot_image_num == 2):
             self.ax1.cla()
             self.ax2.cla()
@@ -101,8 +103,8 @@ class ImageProcessing(object):
     def main_check(self):
         q = np.random.rand(13)
 
-        #imgDir_path = './RoboCarImage/'
-        imgDir_path = './SaveImage/'
+        imgDir_path = './RoboCarImage/'
+        #imgDir_path = './SaveImage/'
 
         file_list = os.listdir(imgDir_path)
         for File in file_list:
@@ -114,8 +116,19 @@ class ImageProcessing(object):
             image = cv2.resize(image,(227,227))
             new_image_g = self.lane_detection(image)
             new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
-            self.save_image(new_image_g,i)
-            #self.plot(new_image_g,new_image,q.ravel())
+            #self.save_image(new_image_g,i)
+            '''
+            if(np.sum(new_image_g[70:,:113])/255==0):
+                self.save_image(new_image_g, i, './SaveImageLeft/')
+            elif(np.sum(new_image_g[70:,113:])/255==0):
+                self.save_image(new_image_g, i, './SaveImageRight/')
+            else :
+                self.save_image(new_image_g, i, './SaveImageForward/')
+            '''
+
+
+
+            self.plot(new_image_g,new_image,q.ravel())
             #self.plot(self.to_plot(image),new_image,q.ravel())
             #self.plot(self.to_plot(image),self.make_detection_image(image,new_image_g),q.ravel())
 
