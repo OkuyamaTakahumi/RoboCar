@@ -140,7 +140,8 @@ if __name__ == '__main__':
                 else:
                     action, q_now = agent.agent_start(new_image)
                     if(test):
-                        action = decide_test_action(action,q_now)
+                        #action = decide_test_action(action,q_now)
+                        hoge = 1
                     else:
                         episode_num += 1
                         print "Episode %d START"%(episode_num)
@@ -174,7 +175,8 @@ if __name__ == '__main__':
                 else:
                     action, q_now = agent.agent_step(new_image)
                     if(test):
-                        action = decide_test_action(action,q_now)
+                        #action = decide_test_action(action,q_now)
+                        hoge = 1
                         send_action(action,receive_time)
                     else:
 

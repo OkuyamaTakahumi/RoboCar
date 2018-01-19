@@ -47,7 +47,7 @@ class ImageProcessing(object):
         mask = cv2.inRange(img_gray, 200, 255)
         return mask
 
-    def check_death(gray_img):
+    def check_death(self,gray_img):
         return np.sum(gray_img/255.0)<1000
 
     def make_detection_image(self,src,mask):
