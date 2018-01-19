@@ -47,6 +47,9 @@ class ImageProcessing(object):
         mask = cv2.inRange(img_gray, 200, 255)
         return mask
 
+    def check_death(gray_img):
+        return np.sum(gray_img/255.0)<1000
+
     def make_detection_image(self,src,mask):
         flip_mask = 255-mask
         src_copy = src.copy()
@@ -59,7 +62,7 @@ class ImageProcessing(object):
         cv2.imwrite(dir_path+img_name,img)
         print 'Save Finish : %s'%(img_name)
 
-    def plot(self,img1,img2,q,title='',a_num=13):
+    def plot(self,img1,img2,q,title='',a_num=3):
         if(self.plot_image_num == 1):
             self.ax1.cla()
             #self.ax1.tick_params(labelleft="off",labelbottom='off')
@@ -73,7 +76,7 @@ class ImageProcessing(object):
         elif(self.plot_image_num == 2):
             self.ax1.cla()
             self.ax2.cla()
-            self.ax2.title.set_text(title)
+            self.ax1.title.set_text(title)
             self.ax1.imshow(img1)
             self.ax2.imshow(img2)
             if(self.plot_q_value):

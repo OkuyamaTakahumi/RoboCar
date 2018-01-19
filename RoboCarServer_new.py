@@ -11,7 +11,7 @@ import zmq
 import argparse
 
 from DQN_new import CnnDqnAgent
-from Adati import ImageProcessing_adati
+#from Adati import ImageProcessing_adati
 from image_processing import ImageProcessing
 
 parser = argparse.ArgumentParser(description='ml-agent-for-unity')
@@ -40,9 +40,10 @@ parser.add_argument('--log-file', '-l', default='reward.log', type=str,
                     help=u'reward log file name')
 args = parser.parse_args()
 
-def decide_test_action(action,q,a_num):
+def decide_test_action(action,q):
     q_max = q.ravel()[action]
-    forward_index = (a_num-1)/2
+    #forward_index = (a_num-1)/2
+    forward_index = 1
     q_forward = q.ravel()[forward_index]
     print "q : "
     print q.ravel()
@@ -71,6 +72,8 @@ def send_action(action,receive_time):
     #print "Send Action : %d"%(action)
 
 if __name__ == '__main__':
+    with open("run_time.log", 'w') as the_file:
+        the_file.write('Python Run Time(msec)\n')
     gpu = args.gpu
     use_adati = args.adati
     folder = args.folder
@@ -83,7 +86,7 @@ if __name__ == '__main__':
 
     death = True
     cycle_counter = 0
-    episode_num = 1
+    episode_num = 0
     score = 0
 
     if(use_adati):
@@ -93,8 +96,8 @@ if __name__ == '__main__':
         img_pro = ImageProcessing(image_num,plot_q_value)
 
     a_num = 3
-    if(folder=="ModelAction3V"):
-        a_num = 5:
+    if(folder=="ModelAction3V_Real"):
+        a_num = 5
 
     if(NN):
         agent = CnnDqnAgent();
@@ -124,30 +127,29 @@ if __name__ == '__main__':
         image = np.frombuffer(data, dtype=np.uint8);
         image = image.reshape((227,227,3))
 
-        #new_image_g = image = image.reshape((227,227))
-
         new_image_g = img_pro.lane_detection(image)
         new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
 
         if(NN):
             if(death):
-                death,test_action,test_q = agent.check_death(new_image)
+                death = img_pro.check_death(new_image_g) #1chanel
 
                 if(death):
                     print "Agent is Death"
                     action = 100
                 else:
+                    action, q_now = agent.agent_start(new_image)
                     if(test):
-                        action,q_max = decide_test_action(test_action,test_q,a_num)
+                        action = decide_test_action(action,q_now)
                     else:
+                        episode_num += 1
                         print "Episode %d START"%(episode_num)
-                        action = agent.agent_start(new_image)
                     episode_start_time = cycle_counter
                     cycle_counter += 1
                 send_action(action,receive_time)
 
             else:
-                death,test_action,test_q = agent.check_death(new_image)
+                death = img_pro.check_death(new_image_g) #1chanel
 
                 if(death):
                     action = 100 # back
@@ -166,27 +168,27 @@ if __name__ == '__main__':
                         send_action(action,receive_time)
                         reward = -1
                         agent.agent_end(reward,cycle_counter)
-                        episode_num += 1
                     else:
                         send_action(action,receive_time)
 
                 else:
+                    action, q_now = agent.agent_step(new_image)
                     if(test):
-                        action,q_max = decide_test_action(test_action,test_q,a_num)
+                        action = decide_test_action(action,q_now)
                         send_action(action,receive_time)
                     else:
-                        action, q_now = agent.agent_step(new_image)
+
                         send_action(action,receive_time)
                         reward = 0
                         agent.agent_step_update(reward,cycle_counter,action,q_now)
                     cycle_counter += 1
         else:
-            test_q = np.random.rand(a_num)
-            action = 3
-            action,q_max = decide_test_action(action,q,a_num)
+            q_now = np.random.rand(a_num)
+            action = 1
+            action = decide_test_action(action,q_now)
             send_action(action,receive_time)
 
-        img_pro.plot(image,new_image,test_q,a_num)
+        img_pro.plot(new_image_g, new_image, q_now, title=np.sum(new_image_g/255.0),a_num=a_num)
 
         if(cycle_counter==1000):
             print "1000cycle finish"

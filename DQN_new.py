@@ -71,7 +71,7 @@ class CnnDqnAgent(object):
         self.last_state = self.state.copy()
         print "Record last State and Action"
 
-        return return_action
+        return return_action, q_now
 
     # 学習系メソッド
     def agent_end(self, reward, time):  # Episode Terminated
