@@ -25,6 +25,10 @@ class ImageProcessing(object):
         elif(plot_q_value):
             self.fig, self.ax3 = plt.subplots(1, 1)
 
+        self.roi_mask = self.to_grayscale(cv2.imread("./RoboCarROI.png"))
+        print "roi_mask.shape : "
+        print self.roi_mask.shape
+
     def to_plot(self,img):
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -107,35 +111,27 @@ class ImageProcessing(object):
             if '.jpg' not in File and '.jpeg' not in File and '.png' not in File and '.JPG' not in File:
                 file_list.remove(File)
 
+        #sum_image = np.zeros((227,227))
         for i in range(len(file_list)):
             image = cv2.imread(imgDir_path+file_list[i])
             image = cv2.resize(image,(227,227))
             new_image_g = self.lane_detection(image)
             new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
-            #self.save_image(image,i+224)
 
-            if(np.sum(new_image_g[80:,:113])/255==0):
-                q = np.array([1,np.random.rand(),np.random.rand()*0.2])
-                title = 'Left'
-                #self.save_image(new_image_g, i, './SaveImageLeft/')
-            elif(np.sum(new_image_g[80:,113:])/255==0):
-                q = np.array([np.random.rand()*0.2,np.random.rand(),1])
-                title = 'Right'
-                #self.save_image(new_image_g, i, './SaveImageRight/')
-            else :
-                q = np.array([np.random.rand()*0.2,1,np.random.rand()*0.2])
-                title = 'Forward'
-                #self.save_image(new_image_g, i, './SaveImageForward/')
-
-            #self.plot(new_image_g,new_image,q.ravel())
+            #sum_image += new_image_g
+            #self.plot(new_image_g,new_image_g,q.ravel())
+            #self.plot(sum_image,sum_image,q.ravel())
             #self.plot(self.to_plot(image),new_image,q.ravel())
-            self.plot(self.to_plot(image),self.to_plot(self.make_detection_image(image,new_image_g)),q.ravel(),title=title,a_num=3)
+            #self.plot(self.to_plot(image),self.to_plot(self.make_detection_image(image,new_image_g)),q.ravel(),title=title,a_num=3)
+
+            hoge = np.sum(self.roi_mask * new_image_g)
+            self.save_image(new_image_g,hoge)
 
 
 if __name__ == '__main__':
     import time
     start_time = time.time()
-    img_pro = ImageProcessing(2,True)
+    img_pro = ImageProcessing(1,False)
     img_pro.main_check()
     run_time = time.time()-start_time
     print "Run Time : %.3f"%(run_time)
