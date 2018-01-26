@@ -83,7 +83,7 @@ def get_initial_action():
     N0 =  len(np.where(action_log ==0)[0]) # 0の数を取得
     N1 =  len(np.where(action_log ==1)[0]) # 1の数を取得
     N2 =  len(np.where(action_log ==2)[0]) # 2の数を取得
-    print N0,N1,N2
+    print u"直近の各アクションの数:",[N0,N1,N2]
     return np.argmax([N0,N1,N2])
 
 action_log_data_size = 10
@@ -105,3 +105,10 @@ print action_log
 print (action_log ==2) # 2のindexがTrueになる
 print np.where(action_log ==2 ) # 2のindexを取得(返り値Tupple)
 print len(np.where(action_log ==2)[0]) # 2のindexを取得
+actions = range(5)
+np.zeros((len(actions)))
+np.random.randint(3)
+
+action_log_data_size = 15
+action_log = np.empty(action_log_data_size, dtype=int)
+action_log[:] = np.nan

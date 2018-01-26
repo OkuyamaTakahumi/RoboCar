@@ -25,9 +25,10 @@ class ImageProcessing(object):
         elif(plot_q_value):
             self.fig, self.ax3 = plt.subplots(1, 1)
 
-        self.roi_mask = self.to_grayscale(cv2.imread("./RoboCarROI.png"))
-        print "roi_mask.shape : "
-        print self.roi_mask.shape
+        self.roi_mask = self.to_grayscale(cv2.imread("./ROI1.png"))
+        #self.roi_mask = self.to_grayscale(cv2.imread("./ROI2.png"))
+        print "roi_mask[150,0]="
+        print self.roi_mask[150,0]
 
     def to_plot(self,img):
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -40,15 +41,39 @@ class ImageProcessing(object):
     def lane_detection(self,img):
         img_gray = self.to_grayscale(img)
 
-        kernel = np.ones((5,5),np.float32)/25
-        img_gray = cv2.filter2D(img_gray,-1,kernel)
+        #kernel = np.ones((5,5),np.float32)/25
+        #img_gray = cv2.filter2D(img_gray,-1,kernel)
         #mask = cv2.threshold(img_gray,180,255,cv2.THRESH_BINARY)[1]
 
         mask = cv2.inRange(img_gray, 200, 255)
         return mask
 
-    def check_death(self,gray_img):
-        return np.sum(gray_img/255.0)<1000
+    def check_death(self,gray_img,revived):
+        if(revived):
+            alive_value = 1600
+            #return np.sum(gray_img[:113,:]/255.0)<alive_value
+        else:
+            alive_value = 800
+            #return np.sum(gray_img/255.0)<alive_value
+        # 1200-> あまい！
+        # 1600-> きびしい！
+        #alive_value = 1600 #これ超えないとDeathがTrue
+        return np.sum(gray_img[:150,:]/255.0)<alive_value
+
+
+    def change_speed(self,gray_img):
+        hoge1 = np.sum(self.roi_mask[:,:113] * gray_img[:,:113])
+        hoge2 = np.sum(self.roi_mask[:,113:] * gray_img[:,113:])
+        print "hoge1 : ",hoge1
+        print "hoge2 : ",hoge2
+        #return (hoge1>300 and hoge2>300)
+        if(hoge1==0 and hoge2==0):
+            return 0
+        elif(hoge1<hoge2):
+            return float(hoge1)/float(hoge2)
+        elif(hoge1>hoge2):
+            return float(hoge2)/float(hoge1)
+
 
     def make_detection_image(self,src,mask):
         flip_mask = 255-mask
@@ -60,7 +85,7 @@ class ImageProcessing(object):
     def save_image(self,img,photo_id,dir_path='./SaveImage/'):
         img_name = '%05d.png'%(photo_id)
         cv2.imwrite(dir_path+img_name,img)
-        print 'Save Finish : %s'%(img_name)
+        print 'Save Finish : %s'%(dir_path+img_name)
 
     def plot(self,img1,img2,q,title='',a_num=3):
         if(self.plot_image_num == 1):
@@ -83,19 +108,17 @@ class ImageProcessing(object):
                 self.plot_q(q,a_num)
             plt.pause(1.0 / 10**10)
 
-    def plot_q(self,q,a_num=13):
+    def plot_q(self,q,a_num=3):
         self.ax3.cla()
         actions = range(a_num)
         max_q_abs = max(abs(q))
         if max_q_abs != 0:
             q = q / float(max_q_abs)
         self.ax3.set_xticks(actions)
-        if(a_num==7):
-            self.ax3.set_xticklabels(['-30','-20','-10','0','10','20','30'], rotation=0, fontsize='small')
-        elif(a_num==13):
-            self.ax3.set_xticklabels(['-30','-25','-20','-15','-10','-5','0','5','10','15','20','25','30'], rotation=0, fontsize='small')
-        elif(a_num==3):
+        if(a_num==3):
             self.ax3.set_xticklabels(['left','forward','right'], rotation=0, fontsize='small')
+        elif(a_num==5):
+            self.ax3.set_xticklabels(['left','forward','right','accel','brake'], rotation=0, fontsize='small')
         self.ax3.set_xlabel("Action") # x軸のラベル
         self.ax3.set_ylabel("Q_Value") # y軸のラベル
         self.ax3.set_ylim(-1.1, 1.1)  # yを-1.1-1.1の範囲に限定
@@ -104,31 +127,47 @@ class ImageProcessing(object):
         self.ax3.bar(actions,q,align="center")
 
     def main_check(self):
-        q = np.random.rand(7)
-
         imgDir_path = './RoboCarImage/'
         #imgDir_path = './SaveImage/'
+        #imgDir_path = './SaveImageStraight/'
 
         file_list = os.listdir(imgDir_path)
         for File in file_list:
             if '.jpg' not in File and '.jpeg' not in File and '.png' not in File and '.JPG' not in File:
                 file_list.remove(File)
 
-        #sum_image = np.zeros((227,227))
+        sum_image = np.zeros((227,227))
         for i in range(len(file_list)):
+            a_num = 5
+            q = np.random.rand(a_num)
             image = cv2.imread(imgDir_path+file_list[i])
             image = cv2.resize(image,(227,227))
             new_image_g = self.lane_detection(image)
             new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
+            hoge = np.sum(new_image_g/255.0)
+            '''
+            hoge1 = np.sum(self.roi_mask[:,:113] * new_image_g[:,:113])
+            hoge2 = np.sum(self.roi_mask[:,113:] * new_image_g[:,113:])
+            if(hoge1>1800 and hoge2>1800):
+                hoge = hoge1*hoge2
+                #self.save_image(new_image_g,photo_id=hoge)
+                cv2.imwrite("./SaveImage/%d,%d,%d.png"%(hoge1,hoge2,hoge),new_image_g)
+            '''
+
+            #hoge = np.sum(self.roi_mask * new_image_g)
+            #self.save_image(new_image_g,photo_id=hoge)
+            #cv2.imwrite("./SaveImage/%d,%d.png"%(hoge1,hoge2),new_image_g)
+            #self.save_image(new_image_g,photo_id=hoge,dir_path='SaveImage2/')
 
             #sum_image += new_image_g
-            #self.plot(new_image_g,new_image_g,q.ravel())
-            #self.plot(sum_image,sum_image,q.ravel())
-            #self.plot(self.to_plot(image),new_image,q.ravel())
-            #self.plot(self.to_plot(image),self.to_plot(self.make_detection_image(image,new_image_g)),q.ravel(),title=title,a_num=3)
+            self.plot(new_image_g,new_image_g,q.ravel(),title=hoge,a_num=a_num)
+            #self.plot(sum_image,sum_image,q.ravel(),a_num=a_num)
+            #self.plot(self.to_plot(image),new_image,q.ravel(),a_num=a_num)
+            #self.plot(self.to_plot(image),self.to_plot(self.make_detection_image(image,new_image_g)),q.ravel(),title=title,,a_num=a_num)
+        #self.save_image(sum_image,photo_id=0)
 
-            hoge = np.sum(self.roi_mask * new_image_g)
-            self.save_image(new_image_g,hoge)
+
+
 
 
 if __name__ == '__main__':

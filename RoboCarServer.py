@@ -6,12 +6,12 @@ import time
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-
+import zmq
 #%matplotlib inline
 import argparse
 
-from DQN import CnnDqnAgent
-from AdatiDir.Adati import LaneDetection
+from DQN_new import CnnDqnAgent
+#from Adati import ImageProcessing_adati
 from image_processing import ImageProcessing
 
 parser = argparse.ArgumentParser(description='ml-agent-for-unity')
@@ -40,95 +40,18 @@ parser.add_argument('--log-file', '-l', default='reward.log', type=str,
                     help=u'reward log file name')
 args = parser.parse_args()
 
-if(args.image==2 and args.q_value):
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
-    plt.gray()
-elif(args.image==1 and args.q_value):
-    fig, (ax1, ax3) = plt.subplots(1, 2)
-    plt.gray()
-elif(args.image==2):
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    plt.gray()
-elif(args.image==1):
-    fig, ax1 = plt.subplots(1, 1)
-    plt.gray()
-elif(args.q_value):
-    fig, ax3 = plt.subplots(1, 1)
-
-
-def to_plot(img):
-    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-def pause_Image_plot1(img1):
-    ax1.cla()
-    #ax1.tick_params(labelleft="off",labelbottom='off')
-    #ax1.title.set_text('Lane Detection Image')
-    ax1.imshow(img1)
-
-def pause_Image_plot2(img1,img2):
-    ax1.cla()
-    ax2.cla()
-    #ax1.tick_params(labelleft="off",labelbottom='off')
-    #ax2.tick_params(labelleft="off",labelbottom='off')
-    #ax1.title.set_text('Original Image')
-    #ax2.title.set_text('Lane Detection Image')
-    ax1.imshow(img1)
-    ax2.imshow(img2)
-
-#Q関数のplot
-def pause_Q_plot(q, a_num):
-    ax3.cla()
-    #ax3.title.set_text('Q_values of each action')
-    actions = range(a_num)
-
-    max_q_abs = max(abs(q))
-    if max_q_abs != 0:
-        q = q / float(max_q_abs)
-
-    ax3.set_xticks(actions)
-    if(a_num==7):
-        ax3.set_xticklabels(['-30','-20','-10','0','10','20','30'], rotation=0, fontsize='small')
-    elif(a_num==13):
-        ax3.set_xticklabels(['-30','-25','-20','-15','-10','-5','0','5','10','15','20','25','30'], rotation=0, fontsize='small')
-    ax3.set_xlabel("Action") # x軸のラベル
-    ax3.set_ylabel("Q_Value") # y軸のラベル
-    ax3.set_ylim(-1.1, 1.1)  # yを-1.1-1.1の範囲に限定
-    ax3.set_xlim(-1, a_num) # xを-0.5-7.5の範囲に限定
-    ax3.hlines(y=0, xmin=-1, xmax=a_num, colors='r', linewidths=2) #y=0の直線
-
-    ax3.bar(actions,q,align="center")
-
-def decide_test_action(action,q,a_num):
-    q_max = q.ravel()[action]
-    forward_index = (a_num-1)/2
-    q_forward = q.ravel()[forward_index]
-    print "q : "
-    print q.ravel()
-    print "q_max : %f"%(q_max)
-    print "action : %d"%(action)
-    #print "q_forward : %f"%(q_forward)
-    #print "q_forward / q_max : %f"%(q_forward / q_max)
-    #print "q_max - q_forward : %f"%(q_max - q_forward)
-    if(q_max != 0):
-        divide = q_forward / q_max
-    else:
-        divide = 1
-    if(divide > 0.97):
-        print "action : %d"%(forward_index)
-        return forward_index,q_max
-    else:
-        return action,q_max
-
 def send_action(action,receive_time):
     #  Send reply back to client
     socket.send(np.array([action]))
 
     run_mes = (time.time() - receive_time)*1000
-    with open("run_time.log", 'a') as the_file:
-        the_file.write(str(run_mes) + '\n')
-    #print "Send Action : %d"%(action)
+    #with open("run_time.log", 'a') as the_file:
+        #the_file.write(str(run_mes) + '\n')
+    print "Send Action : %d"%(action)
 
 if __name__ == '__main__':
+    #with open("run_time.log", 'w') as the_file:
+        #the_file.write('Python Run Time(msec)\n')
     gpu = args.gpu
     use_adati = args.adati
     folder = args.folder
@@ -136,28 +59,23 @@ if __name__ == '__main__':
     NN = args.NN
     test = args.test
     log_file = args.log_file
+    image_num = args.image
+    plot_q_value = args.q_value
 
     death = True
     cycle_counter = 0
-    episode_num = 1
+    episode_num = 0
     score = 0
-
-    img_pro = ImageProcessing()
 
     if(use_adati):
         print "Use Adati's NN"
-        adati = LaneDetection()
-
-    a_num = 13
-    hidden_dim = 256
-    if(folder=="ModelRobo3Real" or folder=="ModelRobo4Real"):
-        a_num = 7
-    elif(folder=="ModelRobo5_2Real" or folder=="ModelRobo6_2Real" or folder=="ModelRobo6_2_1Real"):
-        hidden_dim = 512
+        img_pro = ImageProcessing_adati(image_num,plot_q_value)
     else:
-        print u"There is not \"%s\" folder"%(folder)
-        import sys
-        sys.exit()
+        img_pro = ImageProcessing(image_num,plot_q_value)
+
+    a_num = 3
+    if(folder=="ModelAction3V_Real"):
+        a_num = 5
 
     if(NN):
         agent = CnnDqnAgent();
@@ -166,7 +84,6 @@ if __name__ == '__main__':
             folder = folder,
             model_num = model_num,
             a_num = a_num,
-            hidden_dim = hidden_dim,
             test = test
         )
 
@@ -181,43 +98,37 @@ if __name__ == '__main__':
 
     print "Waiting Request..."
 
+    reward = 0
+
     while True:
         data = socket.recv()
-        #print "Received"
         receive_time = time.time()
         image = np.frombuffer(data, dtype=np.uint8);
         image = image.reshape((227,227,3))
 
-        #image = image.reshape((227,227))
-        #new_image = cv2.merge((image,image,image))
-
-        if(use_adati):
-            detection_image = adati.mainfunction(image)
-            new_image_g = cv2.resize(detection_image,(227,227))
-
-        else:
-            new_image_g = img_pro.lane_detection2(image)
+        new_image_g = img_pro.lane_detection(image)
         new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
 
         if(NN):
+            q_now = np.zeros((a_num))
             if(death):
-                death,test_action,test_q = agent.check_death(new_image)
+                death = img_pro.check_death(new_image_g,revived=True) #1chanel
 
                 if(death):
                     print "Agent is Death"
                     action = 100
                 else:
-                    if(test):
-                        action,q_max = decide_test_action(test_action,test_q,a_num)
-                    else:
-                        print "Episode %d START"%(episode_num)
-                        action = agent.agent_start(new_image)
+                    action, q_now = agent.agent_start(new_image)
+
+                    episode_num += 1
+                    print "Episode %d START"%(episode_num)
                     episode_start_time = cycle_counter
                     cycle_counter += 1
+
                 send_action(action,receive_time)
 
             else:
-                death,test_action,test_q = agent.check_death(new_image)
+                death = img_pro.check_death(new_image_g,revived=False) #1chanel
 
                 if(death):
                     action = 100 # back
@@ -236,41 +147,40 @@ if __name__ == '__main__':
                         send_action(action,receive_time)
                         reward = -1
                         agent.agent_end(reward,cycle_counter)
-                        episode_num += 1
                     else:
                         send_action(action,receive_time)
 
                 else:
-                    if(test):
-                        action,q_max = decide_test_action(test_action,test_q,a_num)
-                        send_action(action,receive_time)
-                    else:
-                        action, q_now = agent.agent_step(new_image)
-                        send_action(action,receive_time)
-                        reward = 0
+                    action, q_now = agent.agent_step(new_image)
+
+                    send_action(action,receive_time)
+                    if(not test):
                         agent.agent_step_update(reward,cycle_counter,action,q_now)
+                        if(action ==1):
+                            reward = 0.1
+                        else:
+                            reward = 0
                     cycle_counter += 1
         else:
-            q = np.random.rand(a_num)
-            action = 3
-            action,q_max = decide_test_action(action,q,a_num)
+            q_now = np.random.rand(a_num)
+            action = 1
+            if(cycle_counter%10 < 5):
+                action = 1
+            else:
+                action = 100
             send_action(action,receive_time)
+            cycle_counter += 1
+            #img_pro.save_image(img=new_image_g,photo_id=cycle_counter,dir_path='./SaveImageStraight/')
 
-        if(args.image>0 or args.q_value):
-            #if(test):
-                #fig.suptitle("Q_Max : %f"%(q_max),fontsize=24)
-            if(args.image==1):
-                pause_Image_plot1(image)
-            elif(args.image==2):
-                #detect_image = new_image
-                detect_image = img_pro.make_detection_image(image,new_image_g)
-                pause_Image_plot2(to_plot(image),detect_image)
-            if(args.q_value):
-                pause_Q_plot(test_q.ravel(),a_num)
-            plt.pause(1.0 / 10**10) #引数はsleep時間
+        title = np.sum(new_image_g[:150,:]/255.0)
+        #title = img_pro.change_speed(new_image_g)
 
-        if(cycle_counter==1000):
-            print "1000cycle finish"
-            break
+        img_pro.plot(new_image_g, new_image, q_now ,title=title, a_num=a_num)
+
+        #img_pro.plot(img_pro.to_plot(image), new_image_g, q_now ,a_num=a_num)
+
+        #detect_image = img_pro.to_plot(img_pro.make_detection_image(image,new_image_g))
+        #img_pro.plot(detect_image, new_image, q_now, title=title, a_num=a_num)
+
         print "---------------------------------------------------------"
         print "Step : %d"%(cycle_counter)

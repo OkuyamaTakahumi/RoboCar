@@ -16,25 +16,27 @@ class QNet:
     target_model_update_freq = 10**2  # Target update frequancy. original: 10^4
     #data_size = 10**5  # Data size of history. original: 10^6
     data_size = 10**4  # Data size of history. original: 10^6
-    hist_size = 1 #original: 4
+    hist_size = 4 #original: 4
     # モデルを保存する頻度
     #save_model_freq = 10**4
     save_model_freq = 10**3
 
-    def __init__(self, use_gpu, enable_controller, dim, h_dim):
+    def __init__(self, use_gpu, enable_controller, dim):
         self.use_gpu = use_gpu
         self.num_of_actions = len(enable_controller)
         self.enable_controller = enable_controller
         self.dim = dim
 
         print("Initializing Q-Network...")
+        print("Input Dim of Q-Network : "),
+        print(self.dim*self.hist_size)
 
 
-        hidden_dim = h_dim
+        hidden_dim = 256
 
         self.model = FunctionSet(
-            l4=F.Linear(self.dim*self.hist_size, hidden_dim,
-                            wscale=np.sqrt(2)),
+            l4=F.Linear(self.dim*self.hist_size, hidden_dim,wscale=np.sqrt(2)),
+            l5=F.Linear(hidden_dim,hidden_dim,wscale=np.sqrt(2)),
             q_value=F.Linear(hidden_dim, self.num_of_actions,
                             initialW=np.zeros((self.num_of_actions, hidden_dim),
                             dtype=np.float32))
@@ -103,10 +105,8 @@ class QNet:
 
     def stock_experience(self, time,state, action, reward,
                         state_dash,episode_end_flag):
-        #timeを引数に入れることでqueueを実現
-        data_index = time % self.data_size
-        #奥山プログラムとの違い -> appendじゃない
-        # -> ep_endがTrueならstate_dashが全て0になる
+
+        data_index = time % self.data_size #timeを引数に入れることでqueueを実現
         if episode_end_flag is True:
             self.d[0][data_index] = state
             self.d[1][data_index] = action
@@ -117,18 +117,15 @@ class QNet:
             self.d[2][data_index] = reward
             self.d[3][data_index] = state_dash
         self.d[4][data_index] = episode_end_flag
-        print "Stock Exprience ep_end:%r reward:%d"%(episode_end_flag,reward)
+        print "Stock Exprience Episode End:%r Reward:%.3f"%(episode_end_flag,reward)
 
     def experience_replay(self, time):
-        # Pick up replay_size number of samples from the Data
         # 例 : np.random.randint(0,100,(5,5))  0〜99 の整数で5x5の行列を生成
         if time < self.data_size: #during the first sweep of the History
             replay_index = np.random.randint(0, time, (self.replay_size, 1))
         else:
             replay_index = np.random.randint(0, self.data_size, (self.replay_size, 1))
 
-        #奥山プログラムとの違い -> 全てのExperienceに対してReplayない
-        # -> ep_endがTrueならstate_dashが全て0になる
         s_replay = np.ndarray(shape=(self.replay_size, self.hist_size, self.dim), dtype=np.float32)
         a_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.uint8)
         r_replay = np.ndarray(shape=(self.replay_size, 1), dtype=np.float32)
@@ -154,12 +151,14 @@ class QNet:
 
     def q_func(self, state):
         h4 = F.relu(self.model.l4(state / 255.0))
-        q = self.model.q_value(h4)
+        h5 = F.relu(self.model.l5(h4))
+        q = self.model.q_value(h5)
         return q
 
     def q_func_target(self, state):
         h4 = F.relu(self.model_target.l4(state / 255.0))
-        q = self.model_target.q_value(h4)
+        h5 = F.relu(self.model_target.l5(h4))
+        q = self.model_target.q_value(h5)
         return q
 
     def e_greedy(self, state, epsilon):
