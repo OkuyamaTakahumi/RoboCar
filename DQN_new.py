@@ -19,6 +19,8 @@ class CnnDqnAgent(object):
     agent_initialized = False
     q_max_max = 0.0
 
+    cycle_of_episode = 0
+
     def agent_init(self, **options):
         self.use_gpu = options['use_gpu']
         test = options['test']
@@ -43,14 +45,14 @@ class CnnDqnAgent(object):
             print("pickle.dump finished")
 
         self.q_net = QNet(self.use_gpu,self.actions,self.q_net_input_dim)
-        self.q_net_sim = QNet(self.use_gpu,self.actions,self.q_net_input_dim)
+        #self.q_net_sim = QNet(self.use_gpu,self.actions,self.q_net_input_dim)
 
 
         self.q_net.load_model(self.folder,model_num)
-        if(test):
-            self.q_net_sim.load_model(self.folder,model_num)
-        else:
-            self.q_net_sim.load_model(self.folder,0)
+        #if(test):
+            #self.q_net_sim.load_model(self.folder,model_num)
+        #else:
+            #self.q_net_sim.load_model(self.folder,0)
 
     # 行動取得系,state更新系メソッド
     def agent_start(self, image):
@@ -69,9 +71,10 @@ class CnnDqnAgent(object):
         # Update for next step
         self.last_action = copy.deepcopy(return_action)
         self.last_state = self.state.copy()
-        print "Record last State and Action"
 
-        return return_action, q_now
+        #return return_action, q_now
+        self.cycle_of_episode = 1
+        return 0, q_now
 
     # 学習系メソッド
     def agent_end(self, reward, time):  # Episode Terminated
@@ -113,7 +116,12 @@ class CnnDqnAgent(object):
         # Generate an Action by e-greedy action selection
         action, q_now = self.q_net.e_greedy(state_, 0)
 
-        return action, q_now
+        self.cycle_of_episode += 1
+        print "cycle_of_episode : ",self.cycle_of_episode
+        if(self.cycle_of_episode<=5):
+            return 0,q_now
+        else:
+            return action, q_now
 
     # 学習系メソッド
     def agent_step_update(self, reward, time, action, q_now):
@@ -137,7 +145,6 @@ class CnnDqnAgent(object):
 
         self.last_action = copy.deepcopy(action)
         self.last_state = self.state.copy()
-        print "Record last State and Action"
 
         # save model
         if np.mod(time,self.q_net.save_model_freq) == 0:
