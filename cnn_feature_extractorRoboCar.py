@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import sys
-
 import numpy as np
 import chainer
 from chainer import cuda
