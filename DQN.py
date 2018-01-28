@@ -22,8 +22,10 @@ class CnnDqnAgent(object):
     action_log_data_size = 30
     action_log = np.empty(action_log_data_size, dtype=int)
     action_log[:] = np.nan
-    action_stock_num = 0
+    initial_cycle_num = 5
+
     cycle_of_episode = 0
+    action_stock_num = 0
 
     def print_action_log_data(self):
         print "cycle_of_episode : ",self.cycle_of_episode
@@ -70,36 +72,31 @@ class CnnDqnAgent(object):
 
     # 行動取得系,state更新系メソッド
     def agent_start(self, image):
-        try:
-            obs_array = self.feature_extractor.feature(image)
-            # Initialize State
-            self.state = np.zeros((self.q_net.hist_size, self.q_net_input_dim), dtype=np.uint8)
-            self.state[0] = obs_array
+        obs_array = self.feature_extractor.feature(image)
+        # Initialize State
+        self.state = np.zeros((self.q_net.hist_size, self.q_net_input_dim), dtype=np.uint8)
+        self.state[0] = obs_array
 
-            # Generate an Action e-greedy
-            self.initial_action = self.get_initial_action()
-            q_now = np.zeros((len(self.actions)))
-            return_action = self.initial_action
+        # Generate an Action e-greedy
+        self.initial_action = self.get_initial_action()
+        q_now = np.zeros((len(self.actions)))
+        return_action = self.initial_action
 
-            # Update for next step
-            self.last_action = copy.deepcopy(return_action)
-            self.last_state = self.state.copy()
+        # Update for next step
+        self.last_action = copy.deepcopy(return_action)
+        self.last_state = self.state.copy()
 
-            self.cycle_of_episode = 0
-            self.print_action_log_data()
+        self.cycle_of_episode = 0
+        self.print_action_log_data()
 
-            return return_action, q_now
-        except:
-            import traceback
-            import sys
-            traceback.print_exc()
-            sys.exit()
+        return return_action, q_now
 
     # 学習系メソッド
     def agent_end(self, reward, time):  # Episode Terminated
-        # Learning Phase
-        self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.last_state,True)
-        self.q_net.experience_replay(time)
+        if(self.cycle_of_episode > self.initial_cycle_num+1):
+            # Learning Phase
+            self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.last_state,True)
+            self.q_net.experience_replay(time)
 
         # Target model update
         if np.mod(time, self.q_net.target_model_update_freq) == 0:
@@ -115,70 +112,60 @@ class CnnDqnAgent(object):
 
     # 行動取得系,state更新系メソッド
     def agent_step(self, image):
-        try:
-            obs_array = self.feature_extractor.feature(image)
-            if self.q_net.hist_size == 4:
-                self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], obs_array], dtype=np.uint8)
-            elif self.q_net.hist_size == 2:
-                self.state = np.asanyarray([self.state[1], obs_array], dtype=np.uint8)
-            elif self.q_net.hist_size == 1:
-                self.state = np.asanyarray([obs_array], dtype=np.uint8)
-            else:
-                print("self.DQN.hist_size err")
+        obs_array = self.feature_extractor.feature(image)
+        if self.q_net.hist_size == 4:
+            self.state = np.asanyarray([self.state[1], self.state[2], self.state[3], obs_array], dtype=np.uint8)
+        elif self.q_net.hist_size == 2:
+            self.state = np.asanyarray([self.state[1], obs_array], dtype=np.uint8)
+        elif self.q_net.hist_size == 1:
+            self.state = np.asanyarray([obs_array], dtype=np.uint8)
+        else:
+            print("self.DQN.hist_size err")
 
-            self.cycle_of_episode += 1
+        self.cycle_of_episode += 1
 
-            self.print_action_log_data()
-            if(self.cycle_of_episode<=5):
-                action = self.initial_action
-                q_now = np.zeros((len(self.actions)))
-                return action, q_now
-
-            state_ = np.asanyarray(self.state.reshape(1, self.q_net.hist_size, self.q_net_input_dim), dtype=np.float32)
-            if self.use_gpu >= 0:
-                state_ = cuda.to_gpu(state_)
-
-            action, q_now = self.q_net.e_greedy(state_, 0)
-
-            self.stock_action_log(action)
-
+        self.print_action_log_data()
+        if(self.cycle_of_episode<=self.initial_cycle_num):
+            action = self.initial_action
+            q_now = np.zeros((len(self.actions)))
             return action, q_now
-        except:
-            import traceback
-            import sys
-            traceback.print_exc()
-            sys.exit()
+
+        state_ = np.asanyarray(self.state.reshape(1, self.q_net.hist_size, self.q_net_input_dim), dtype=np.float32)
+        if self.use_gpu >= 0:
+            state_ = cuda.to_gpu(state_)
+
+        action, q_now = self.q_net.e_greedy(state_, 0)
+
+        self.stock_action_log(action)
+
+        return action, q_now
+
 
     # 学習系メソッド
     def agent_step_update(self, reward, time, action, q_now):
-        try:
+        if(self.cycle_of_episode > self.initial_cycle_num+1):
             # Learning Phase
             self.q_net.stock_experience(time, self.last_state, self.last_action, reward, self.state, False)
             self.q_net.experience_replay(time)
 
-            # Target model update
-            if np.mod(time, self.q_net.target_model_update_freq) == 0:
-                print("Model Updated")
-                self.q_net.target_model_update()
+        # Target model update
+        if np.mod(time, self.q_net.target_model_update_freq) == 0:
+            print("Model Updated")
+            self.q_net.target_model_update()
 
-            # Simple text based visualization
-            if(self.use_gpu >= 0 and self.cycle_of_episode > 5):
-                q_max = np.max(q_now.get())
-            else:
-                q_max = np.max(q_now)
+        # Simple text based visualization
+        if(self.use_gpu >= 0 and self.cycle_of_episode > self.initial_cycle_num):
+            q_max = np.max(q_now.get())
+        else:
+            q_max = np.max(q_now)
 
-            print('Action:%d  Reward:%.3f Q_max:%3f' % (
-                self.q_net.action_to_index(action), reward, q_max))
+        print('Action:%d  Reward:%.3f Q_max:%3f' % (
+            self.q_net.action_to_index(action), reward, q_max))
 
-            self.last_action = copy.deepcopy(action)
-            self.last_state = self.state.copy()
+        self.last_action = copy.deepcopy(action)
+        self.last_state = self.state.copy()
 
-            # save model
-            if np.mod(time,self.q_net.save_model_freq) == 0:
-                print "-------------------Save Model-------------------"
-                self.q_net.save_model(self.folder,time)
-        except:
-            import traceback
-            import sys
-            traceback.print_exc()
-            sys.exit()
+        # save model
+        if np.mod(time,self.q_net.save_model_freq) == 0:
+            print "-------------------Save Model-------------------"
+            self.q_net.save_model(self.folder,time)
