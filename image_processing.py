@@ -7,6 +7,12 @@ import cv2
 import matplotlib.pyplot as plt
 
 class ImageProcessing(object):
+    last_death_check = True
+    last_last_death_check = True
+    last_last_last_death_check = True
+
+    death_check_log_data_size = 3
+    death_check_log = [True]*death_check_log_data_size
     def __init__(self,plot_image_num,plot_q_value):
         self.plot_image_num = plot_image_num
         self.plot_q_value = plot_q_value
@@ -54,25 +60,26 @@ class ImageProcessing(object):
             #return np.sum(gray_img[:113,:]/255.0)<alive_value
         else:
             alive_value = 800
-            #return np.sum(gray_img/255.0)<alive_value
-        # 1200-> あまい！
-        # 1600-> きびしい！
-        #alive_value = 1600 #これ超えないとDeathがTrue
-        return np.sum(gray_img[:150,:]/255.0)<alive_value
+        death_check = np.sum(gray_img[:140,:]/255.0)<alive_value
+        self.death_check_log.append(death_check)
+        self.death_check_log.pop(0)
+        print self.death_check_log
+        return_death = (np.sum(self.death_check_log)==self.death_check_log_data_size)
+        return return_death
 
 
     def change_speed(self,gray_img):
         hoge1 = np.sum(self.roi_mask[:,:113] * gray_img[:,:113])
         hoge2 = np.sum(self.roi_mask[:,113:] * gray_img[:,113:])
-        print "hoge1 : ",hoge1
-        print "hoge2 : ",hoge2
-        #return (hoge1>300 and hoge2>300)
-        if(hoge1==0 and hoge2==0):
-            return 0
+        if(hoge1==0 or hoge2==0):
+            hoge3 = 0
         elif(hoge1<hoge2):
-            return float(hoge1)/float(hoge2)
+            hoge3 =  float(hoge1)/float(hoge2)
         elif(hoge1>hoge2):
-            return float(hoge2)/float(hoge1)
+            hoge3 =  float(hoge2)/float(hoge1)
+        elif(hoge1 == hoge2):
+            hoge3 = 1
+        return hoge1,hoge2,hoge3
 
 
     def make_detection_image(self,src,mask):
@@ -90,8 +97,6 @@ class ImageProcessing(object):
     def plot(self,img1,img2,q,title='',a_num=3):
         if(self.plot_image_num == 1):
             self.ax1.cla()
-            #self.ax1.tick_params(labelleft="off",labelbottom='off')
-            #self.ax1.title.set_text('%.0f , %.0f'%(np.sum(img1[80:,:113])/255,np.sum(img1[80:,113:])/255))
             self.ax1.title.set_text(title)
             self.ax1.imshow(img1)
             if(self.plot_q_value):
@@ -145,14 +150,6 @@ class ImageProcessing(object):
             new_image_g = self.lane_detection(image)
             new_image = cv2.merge((new_image_g,new_image_g,new_image_g))
             hoge = np.sum(new_image_g/255.0)
-            '''
-            hoge1 = np.sum(self.roi_mask[:,:113] * new_image_g[:,:113])
-            hoge2 = np.sum(self.roi_mask[:,113:] * new_image_g[:,113:])
-            if(hoge1>1800 and hoge2>1800):
-                hoge = hoge1*hoge2
-                #self.save_image(new_image_g,photo_id=hoge)
-                cv2.imwrite("./SaveImage/%d,%d,%d.png"%(hoge1,hoge2,hoge),new_image_g)
-            '''
 
             #hoge = np.sum(self.roi_mask * new_image_g)
             #self.save_image(new_image_g,photo_id=hoge)

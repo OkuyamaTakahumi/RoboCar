@@ -9,17 +9,11 @@ import chainer.functions as F
 class QNet:
     # Hyper-Parameters
     gamma = 0.99  # 報酬の割引率
-
-
     replay_size = 32  # Replay (batch) size
-    #target_model_update_freq = 10**4  # Target update frequancy. original: 10^4
     target_model_update_freq = 10**2  # Target update frequancy. original: 10^4
-    #data_size = 10**5  # Data size of history. original: 10^6
     data_size = 10**4  # Data size of history. original: 10^6
     hist_size = 4 #original: 4
-    # モデルを保存する頻度
-    #save_model_freq = 10**4
-    save_model_freq = 10**3
+    save_model_freq = 10**3 # モデルを保存する頻度
 
     def __init__(self, use_gpu, enable_controller, dim):
         self.use_gpu = use_gpu
