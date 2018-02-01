@@ -112,3 +112,24 @@ np.random.randint(3)
 action_log_data_size = 15
 action_log = np.empty(action_log_data_size, dtype=int)
 action_log[:] = np.nan
+
+
+def hoge():
+    return 1,2,3
+
+hoge1,hoge2,hoge3 = hoge()
+hogehoge = hoge()
+hoge1,hoge2,hoge3
+hogehoge
+a = 0.12345678
+print np.round(a,3)
+print "%3f,%.3f"%(a,a)
+
+death_check_log_data_size = 4
+death_check_log = [True]*death_check_log_data_size
+
+for i in range(4):
+    death_check_log.append(False)
+    death_check_log.pop(0)
+    print death_check_log
+    print np.sum(death_check_log)

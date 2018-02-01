@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from chainer import cuda
 
 from cnn_feature_extractorRoboCar import CnnFeatureExtractor
-from q_netRoboCar_new import QNet
+from q_netRoboCar import QNet
 
 class CnnDqnAgent(object):
     cnn_feature_extractor = 'alexnet_feature_extractor.pickle' #1
@@ -22,6 +22,7 @@ class CnnDqnAgent(object):
     action_log_data_size = 30
     action_log = np.empty(action_log_data_size, dtype=int)
     action_log[:] = np.nan
+    #
     initial_cycle_num = 5
 
     cycle_of_episode = 0
@@ -41,6 +42,8 @@ class CnnDqnAgent(object):
             self.action_stock_num += 1
 
     def get_initial_action(self):
+        if(not self.test):
+            return 1
         if(len(np.where(self.action_log ==0)[0]) > len(np.where(self.action_log ==2)[0])):
             return 0
         else:
@@ -52,6 +55,12 @@ class CnnDqnAgent(object):
         self.folder = options["folder"] #save_modelで使う->self.
         model_num = options['model_num']
         self.actions = range(options['a_num'])#数字じゃなくても大丈夫
+
+        self.test = options['test']
+        if(self.test):
+            print "TEST!!"
+            initial_cycle_num = 0
+
 
         print "folder = %s"%(self.folder)
         print "actions = ",
@@ -87,7 +96,7 @@ class CnnDqnAgent(object):
         self.last_state = self.state.copy()
 
         self.cycle_of_episode = 0
-        self.print_action_log_data()
+        ##self.print_action_log_data()
 
         return return_action, q_now
 
@@ -124,7 +133,7 @@ class CnnDqnAgent(object):
 
         self.cycle_of_episode += 1
 
-        self.print_action_log_data()
+        #self.print_action_log_data()
         if(self.cycle_of_episode<=self.initial_cycle_num):
             action = self.initial_action
             q_now = np.zeros((len(self.actions)))
@@ -159,7 +168,7 @@ class CnnDqnAgent(object):
         else:
             q_max = np.max(q_now)
 
-        print('Action:%d  Reward:%.3f Q_max:%3f' % (
+        print('Action:%d  Reward:%.3f Q_max:%.3f' % (
             self.q_net.action_to_index(action), reward, q_max))
 
         self.last_action = copy.deepcopy(action)
